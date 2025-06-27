@@ -112,9 +112,18 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port ${API_PORT:-8000}
 
 ## Docker Setup
 The Docker container launches the service as an ASGI application (via Uvicorn), hosting both the web UI/API and the async polling loop. Build and run both the database and worker with Docker Compose:
-docker-compose up --build
 ```bash
 docker-compose up --build
+```
+
+**Note:** The Postgres container initializes its data directory only on first startup. If you change the `POSTGRES_DB` (or other credentials) after an initial run, the existing volume will prevent re-initialization and your new database will not be created. To force a fresh database initialization, remove the volume and restart:
+```bash
+docker-compose down -v
+docker-compose up --build
+```
+Or manually create the new database in the running container:
+```bash
+docker-compose exec db psql -U $POSTGRES_USER -c "CREATE DATABASE $POSTGRES_DB;"
 ```
 
 The HTTP API will be exposed on the port configured by `API_PORT` (default 8000).
