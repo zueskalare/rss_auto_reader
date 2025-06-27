@@ -1,6 +1,7 @@
 feedparser
 Flask
 langchain
+gradio
 # ASGI server and middleware for async support
 starlette
 uvicorn[standard]
@@ -9,6 +10,3 @@ PyYAML
 psycopg2-binary
 requests
 SQLAlchemy
-langchain_openai
-langchain_community
-langgraph

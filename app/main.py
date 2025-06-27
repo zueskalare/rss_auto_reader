@@ -113,12 +113,15 @@ def summarize_and_push(session: Session):
             logging.error(f"Error summarizing article {article.id}: {e}")
 
 
+# ASGI and Gradio imports
+import gradio as gr
+from .gradio_ui import gr_interface
 from starlette.applications import Starlette
 from starlette.middleware.wsgi import WSGIMiddleware
 
 # --- ASGI integration: wrap Flask app and schedule async polling ---
 app = Starlette()
-app.mount("/", WSGIMiddleware(flask_app))  # mount Flask app
+app.mount("/", WSGIMiddleware(flask_app))  # mount Flask app (Flask Web UI & API)
 
 
 async def async_loop() -> None:
@@ -143,3 +146,6 @@ async def async_loop() -> None:
 async def on_startup() -> None:
     # launch background polling loop
     asyncio.create_task(async_loop())
+    # launch Gradio admin UI in background
+    ui_port = int(os.getenv("UI_PORT", 7860))
+    gr_interface.launch(server_name="0.0.0.0", server_port=ui_port, in_background=True)

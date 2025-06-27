@@ -105,9 +105,10 @@ python -c "from app.db import init_db; init_db()"
 
 ## Running Locally
 ```bash
-# Ensure venv activated and env vars set
+# Ensure venv activated and env vars set (including UI_PORT for Gradio UI)
 # Run with Uvicorn for ASGI server (auto-reload during development)
 uvicorn app.main:app --reload --host 127.0.0.1 --port ${API_PORT:-8000}
+# The Gradio Admin UI will be available at http://127.0.0.1:${UI_PORT:-7860}/
 ```
 
 ## Docker Setup
@@ -134,6 +135,13 @@ A simple built-in web UI is available for managing RSS feeds and user interests.
 
 - `/web/feeds` to add, view, and remove feeds.
 - `/web/users` to add, view, and remove users and their interest filters.
+
+## Gradio Admin UI
+
+In addition to the Flask-based web UI and HTTP API, a Gradio-based admin interface is available for viewing articles, managing feeds, and configuring user webhooks.
+It starts automatically on application startup and listens on port configured by `UI_PORT` (default 7860).
+
+Browse to `http://localhost:${UI_PORT:-7860}/` to access the Gradio Admin UI.
 
 ## Project Structure
 ```
