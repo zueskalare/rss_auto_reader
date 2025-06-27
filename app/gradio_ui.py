@@ -97,9 +97,7 @@ def build_interface():
         gr.Markdown("## Articles")
         art_table = gr.Dataframe(
             headers=["ID","Feed","Title","Link","Published","Summary","Status","Created","Updated"],
-            interactive=False,
-            max_rows=20,
-        )
+            interactive=False)
         gr.Button("Refresh Articles").click(get_articles_table, None, art_table)
 
         gr.Markdown("## Feeds")
