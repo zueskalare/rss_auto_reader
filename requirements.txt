@@ -9,3 +9,6 @@ PyYAML
 psycopg2-binary
 requests
 SQLAlchemy
+langchain_openai
+langchain_community
+langgraph
