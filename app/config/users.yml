@@ -1,0 +1,18 @@
+# List of users and their interest filters
+# Example:
+# - username: alice
+#   webhook: https://your.webhook/for/alice
+#   interests:
+#     - "AI"
+#     - "OpenAI"
+# - username: bob
+#   webhook: https://bob.webhook/notify
+#   interests:
+#     - "cloud"
+#     - "python"
+users:
+  - username: demo
+    webhook: https://httpbin.org/post
+    interests:
+      - "AI"
+      - "OpenAI"

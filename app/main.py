@@ -9,14 +9,60 @@ import yaml
 from datetime import datetime
 from sqlalchemy.orm import Session
 
+
 from .db import SessionLocal, init_db
-from .models import Article, ArticleStatus
-from .api import start_api
-from .llm import summarize_article
-from .dispatcher import dispatch_summary
+from .models.article import Article, ArticleStatus
+from .api.views import start_api
+from .services.summarize import summarize_article
+from .services.dispatcher import dispatch_summary
+
+
+# --- User interest config/support ---
+BASE_DIR = os.path.dirname(__file__)
+USERS_CONFIG_PATH = os.path.join(BASE_DIR, "config", "users.yml")
+
+def load_users():
+    """Loads user interest config from users.yml"""
+    if not os.path.exists(USERS_CONFIG_PATH):
+        return []
+    with open(USERS_CONFIG_PATH, "r") as f:
+        cfg = yaml.safe_load(f) or {}
+    return cfg.get("users", [])
+
+
+def article_matches_interest(article, interests):
+    """Return True if article's title or summary matches any interests (case-insensitive substring)"""
+    text = f"{article.title or ''} {article.summary or ''}".lower()
+    for item in interests:
+        if str(item).lower() in text:
+            return True
+    return False
+
+import requests
+def dispatch_to_user_webhooks(article, summary):
+    users = load_users()
+    for user in users:
+        interests = user.get("interests", [])
+        if interests and article_matches_interest(article, interests):
+            webhook = user.get("webhook")
+            if webhook:
+                payload = {
+                    "id": article.id,
+                    "feed_name": article.feed_name,
+                    "title": article.title,
+                    "link": article.link,
+                    "published": article.published.isoformat() if article.published else None,
+                    "summary": summary,
+                    "matched_interests": interests
+                }
+                try:
+                    requests.post(webhook, json=payload, timeout=10)
+                except Exception as e:
+                    logging.warning(f"User webhook failed for {user.get('username')}: {e}")
 
 BASE_DIR = os.path.dirname(__file__)
-CONFIG_PATH = os.path.join(BASE_DIR, "feeds.yml")
+
+CONFIG_PATH = os.path.join(BASE_DIR, "config", "feeds.yml")
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", 300))
 
 def load_config():
@@ -58,7 +104,10 @@ def summarize_and_push(session: Session):
             article.summary = summary
             article.status = ArticleStatus.summarized
             session.commit()
+            # Dispatch globally (legacy)
             dispatch_summary(article, summary)
+            # Dispatch to any interested users
+            dispatch_to_user_webhooks(article, summary)
         except Exception as e:
             session.rollback()
             article.status = ArticleStatus.error

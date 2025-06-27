@@ -29,8 +29,8 @@ services:
     ports:
       - "${API_PORT:-8000}:${API_PORT:-8000}"
     volumes:
-      - ./app:/app
-    command: python -u /app/main.py
+      - ./app:/app/app
+    command: python -u -m app.main
 
 volumes:
   db_data:

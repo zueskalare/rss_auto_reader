@@ -8,11 +8,14 @@
 - [Installation](#installation)
 - [Configuration](#configuration)
   - [feeds.yml](#feedsyml)
+  - [users.yml](#usersyml)
   - [Environment Variables](#environment-variables)
 - [Database Initialization](#database-initialization)
 - [Running Locally](#running-locally)
 - [Docker Setup](#docker-setup)
+- [Web Interface](#web-interface)
 - [Project Structure](#project-structure)
+- [API Interface](#api-interface)
 - [Contributing](#contributing)
 
 ## Features
@@ -40,12 +43,28 @@ pip install -r app/requirements.txt
 ## Configuration
 
 ### feeds.yml
-Customize `app/feeds.yml` with your feed list and default polling interval:
+Customize `app/config/feeds.yml` with your feed list and default polling interval:
 ```yaml
 feeds:
   - name: ExampleFeed
     url: https://example.com/rss
 interval: 300
+```
+
+### users.yml
+Customize `app/config/users.yml` to configure user interests and their target webhooks:
+```yaml
+users:
+  - username: alice
+    webhook: https://your.webhook/for/alice
+    interests:
+      - "AI"
+      - "OpenAI"
+  - username: bob
+    webhook: https://bob.webhook/notify
+    interests:
+      - "cloud"
+      - "python"
 ```
 
 ### Environment Variables
@@ -96,20 +115,35 @@ docker-compose up --build
 
 The HTTP API will be exposed on the port configured by `API_PORT` (default 8000).
 
+## Web Interface
+
+A simple built-in web UI is available for managing RSS feeds and user interests. Once the service is running (locally or via Docker Compose), browse to:
+
+- `/web/feeds` to add, view, and remove feeds.
+- `/web/users` to add, view, and remove users and their interest filters.
+
 ## Project Structure
 ```
 RSS_llm/
 ├── app/
-│   ├── api.py            # HTTP API routes for feed/article management
-│   ├── dispatcher.py     # Webhook dispatcher for summarized articles
-│   ├── llm.py            # LLM client for summarization (OpenAI or self-hosted)
+│   ├── api/
+│   │   └── views.py          # HTTP API & web UI routes
+│   ├── config/
+│   │   ├── feeds.yml         # RSS feed list & polling interval
+│   │   └── users.yml         # User interests & webhooks
 │   ├── db.py
-│   ├── models.py
 │   ├── main.py
-│   └── feeds.yml
+│   ├── models/
+│   │   └── article.py
+│   ├── requirements.txt
+│   └── services/
+│       ├── dispatcher.py     # Webhook dispatcher for summarized articles
+│       └── summarize.py      # Summarization logic
 ├── Dockerfile
 ├── docker-compose.yml
+├── .env.example
 ├── .gitignore
+├── .dockerignore
 └── README.md
 ```
 

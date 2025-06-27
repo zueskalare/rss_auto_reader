@@ -1,6 +1,7 @@
 import os
 from typing import List, Tuple
 
+
 from langchain.chat_models import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
 

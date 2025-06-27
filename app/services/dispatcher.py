@@ -2,6 +2,7 @@ import os
 import logging
 import requests
 
+
 WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 def dispatch_summary(article, summary: str) -> None:

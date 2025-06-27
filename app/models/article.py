@@ -11,7 +11,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.sql import func
 
-from .db import Base
+from app.db import Base
 
 
 class ArticleStatus(enum.Enum):
