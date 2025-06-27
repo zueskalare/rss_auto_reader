@@ -134,26 +134,6 @@ app.mount("/", WSGIMiddleware(flask_app))  # mount Flask app (Flask Web UI & API
 async def async_loop() -> None:
     """Background task: poll feeds and process articles asynchronously."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
-    init_db()
-    # seed initial feed and user configs from YAML into DB
-    session = SessionLocal()
-    try:
-        # seed feeds
-        with open(CONFIG_PATH, "r") as f:
-            cfg = yaml.safe_load(f) or {}
-        for fdef in cfg.get("feeds", []):
-            if not session.query(Feed).filter_by(name=fdef.get("name")).first():
-                session.add(Feed(name=fdef.get("name"), url=fdef.get("url")))
-        # seed users
-        if os.path.exists(USERS_CONFIG_PATH):
-            with open(USERS_CONFIG_PATH, "r") as uf:
-                ucfg = yaml.safe_load(uf) or {}
-            for udef in ucfg.get("users", []):
-                if not session.query(User).filter_by(username=udef.get("username")).first():
-                    session.add(User(username=udef.get("username"), webhook=udef.get("webhook"), interests=udef.get("interests", [])))
-        session.commit()
-    finally:
-        session.close()
     while True:
         session = SessionLocal()
         try:
@@ -170,6 +150,30 @@ async def async_loop() -> None:
 
 @app.on_event("startup")
 async def on_startup() -> None:
+    # initialize database tables and seed initial feed/user configs
+    init_db()
+    session = SessionLocal()
+    try:
+        with open(CONFIG_PATH, "r") as f:
+            cfg = yaml.safe_load(f) or {}
+        for fdef in cfg.get("feeds", []):
+            if not session.query(Feed).filter_by(name=fdef.get("name")).first():
+                session.add(Feed(name=fdef.get("name"), url=fdef.get("url")))
+        if os.path.exists(USERS_CONFIG_PATH):
+            with open(USERS_CONFIG_PATH, "r") as uf:
+                ucfg = yaml.safe_load(uf) or {}
+            for udef in ucfg.get("users", []):
+                if not session.query(User).filter_by(username=udef.get("username")).first():
+                    session.add(
+                        User(
+                            username=udef.get("username"),
+                            webhook=udef.get("webhook"),
+                            interests=udef.get("interests", []),
+                        )
+                    )
+        session.commit()
+    finally:
+        session.close()
     # launch background polling loop
     asyncio.create_task(async_loop())
     # launch Gradio admin UI in background
