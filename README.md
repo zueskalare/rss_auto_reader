@@ -26,7 +26,7 @@
 - **Dockerized**: Ready to run via Docker Compose for easy deployment.
 
 ## Prerequisites
-- Python 3.9+
+- Python 3.12+
 - PostgreSQL (or Docker via `docker-compose`)
 - OpenAI API key
 
@@ -37,7 +37,7 @@ cd RSS_llm
 python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
-pip install -r app/requirements.txt
+pip install -r requirements.txt
 ```
 
 ## Configuration
@@ -104,7 +104,8 @@ python -c "from app.db import init_db; init_db()"
 ## Running Locally
 ```bash
 # Ensure venv activated and env vars set
-python -u app/main.py
+# Run with Uvicorn for ASGI server (auto-reload during development)
+uvicorn app.main:app --reload --host 127.0.0.1 --port ${API_PORT:-8000}
 ```
 
 ## Docker Setup

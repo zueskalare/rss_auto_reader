@@ -1,7 +1,6 @@
 import os
-import time
 import logging
-import threading
+import asyncio
 
 import feedparser
 import yaml
@@ -9,10 +8,9 @@ import yaml
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-
 from .db import SessionLocal, init_db
 from .models.article import Article, ArticleStatus
-from .api.views import start_api
+from .api.views import app as flask_app
 from .services.summarize import summarize_article
 from .services.dispatcher import dispatch_summary
 
@@ -115,15 +113,18 @@ def summarize_and_push(session: Session):
             logging.error(f"Error summarizing article {article.id}: {e}")
 
 
-def main():
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s: %(message)s",
-    )
+from starlette.applications import Starlette
+from starlette.middleware.wsgi import WSGIMiddleware
+
+# --- ASGI integration: wrap Flask app and schedule async polling ---
+app = Starlette()
+app.mount("/", WSGIMiddleware(flask_app))  # mount Flask app
+
+
+async def async_loop() -> None:
+    """Background task: poll feeds and process articles asynchronously."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
     init_db()
-    api_thread = threading.Thread(target=start_api, daemon=True)
-    api_thread.start()
-    logging.info("Starting RSS polling loop")
     while True:
         session = SessionLocal()
         try:
@@ -136,8 +137,9 @@ def main():
             logging.error(f"Error in main loop: {e}")
         finally:
             session.close()
-        time.sleep(interval)
+        await asyncio.sleep(interval)
 
-
-if __name__ == "__main__":
-    main()
+@app.on_event("startup")
+async def on_startup() -> None:
+    # launch background polling loop
+    asyncio.create_task(async_loop())
