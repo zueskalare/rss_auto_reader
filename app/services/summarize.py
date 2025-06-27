@@ -2,8 +2,6 @@ import os
 import json
 from typing import List, Tuple, Dict
 from pydantic.v1 import BaseModel, Field, ValidationError
-from langchain.output_parsers import PydanticOutputParser
-
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -31,7 +29,6 @@ class SummarizationResult(BaseModel):
     summary: str = Field(..., description="Concise summary of the article")
     recipients: List[str] = Field(default_factory=list, description="Usernames to send the summary to")
 
-parser = PydanticOutputParser(pydantic_object=SummarizationResult)
 
 def summarize_articles(
     items: List[Tuple[str, str, str, str]], users: List[Dict[str, List[str]]]
