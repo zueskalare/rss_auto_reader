@@ -73,6 +73,9 @@ def get_articles_table():
                 a.link,
                 a.published.isoformat() if a.published else "",
                 a.summary or "",
+                a.ai_summary or "",
+                a.recipients or "",
+                a.sent,
                 a.status.value,
                 a.created_at.isoformat(),
                 a.updated_at.isoformat() if a.updated_at else "",
@@ -88,7 +91,7 @@ def build_interface():
 
         gr.Markdown("## Articles")
         art_table = gr.Dataframe(
-            headers=["ID","Feed","Title","Link","Published","Summary","Status","Created","Updated"],
+            headers=["ID","Feed","Title","Link","Published","Feed Summary","AI Summary","Recipients","Sent","Status","Created","Updated"],
             interactive=False,
         )
         gr.Button("Refresh Articles").click(get_articles_table, None, art_table)

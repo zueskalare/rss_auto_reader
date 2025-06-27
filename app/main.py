@@ -11,7 +11,9 @@ from sqlalchemy.orm import Session
 from .db import SessionLocal, init_db
 from .models.article import Article, ArticleStatus
 from .api.views import app as flask_app
-from .services.summarize import summarize_article
+import json
+import requests
+from .services.summarize import summarize_article, summarize_articles
 from .services.dispatcher import dispatch_summary
 from .models.feed import Feed
 from .models.user import User
@@ -95,6 +97,7 @@ def fetch_and_store(session: Session, feed: dict):
                 title=entry.get("title"),
                 link=entry.get("link"),
                 published=published,
+                summary=entry.get("summary"),
                 status=ArticleStatus.new,
             )
             session.add(article)
@@ -102,22 +105,101 @@ def fetch_and_store(session: Session, feed: dict):
 
 
 def summarize_and_push(session: Session):
-    articles = session.query(Article).filter_by(status=ArticleStatus.new).all()
-    for article in articles:
+    # summarize new articles in batches of 10, with AI-based recipient selection
+    new_articles = session.query(Article).filter_by(status=ArticleStatus.new).all()
+    users = load_users()
+    user_data = [{"username": u.username, "interests": u.interests or []} for u in users]
+    for i in range(0, len(new_articles), 10):
+        batch = new_articles[i : i + 10]
+        inputs = [
+            (
+                a.title,
+                a.link,
+                a.published.isoformat() if a.published else "",
+                a.summary or "",
+            )
+            for a in batch
+        ]
         try:
-            summary = summarize_article(article.title, article.link)
-            article.summary = summary
-            article.status = ArticleStatus.summarized
-            session.commit()
-            # Dispatch globally (legacy)
-            dispatch_summary(article, summary)
-            # Dispatch to any interested users
-            dispatch_to_user_webhooks(article, summary)
+            results = summarize_articles(inputs, user_data)
+            for article, result in zip(batch, results):
+                summary = result.get("summary", "")
+                recipients = result.get("recipients", []) or []
+                article.ai_summary = summary
+                article.recipients = json.dumps(recipients)
+                article.status = ArticleStatus.summarized
+                # dispatch to selected users
+                success = True
+                for username in recipients:
+                    u = session.query(User).filter_by(username=username).first()
+                    if u and u.webhook:
+                        try:
+                            requests.post(
+                                u.webhook,
+                                json={
+                                    "id": article.id,
+                                    "feed_name": article.feed_name,
+                                    "title": article.title,
+                                    "link": article.link,
+                                    "published": article.published.isoformat() if article.published else None,
+                                    "feed_summary": article.summary,
+                                    "ai_summary": summary,
+                                    "matched_interests": recipients,
+                                },
+                                timeout=10,
+                            )
+                        except Exception:
+                            success = False
+                    else:
+                        success = False
+                article.sent = success
+                session.commit()
+                dispatch_summary(article, summary)
         except Exception as e:
             session.rollback()
-            article.status = ArticleStatus.error
+            for article in batch:
+                try:
+                    article.status = ArticleStatus.error
+                    session.commit()
+                except Exception:
+                    session.rollback()
+            logging.error(
+                f"Error summarizing batch starting with article {batch[0].id if batch else 'N/A'}: {e}"
+            )
+
+    # retry dispatch for previously summarized but unsent articles
+    unsent = session.query(Article).filter_by(status=ArticleStatus.summarized, sent=False).all()
+    for article in unsent:
+        try:
+            recipients = json.loads(article.recipients or "[]")
+            success = True
+            for username in recipients:
+                u = session.query(User).filter_by(username=username).first()
+                if u and u.webhook:
+                    try:
+                        requests.post(
+                            u.webhook,
+                            json={
+                                "id": article.id,
+                                "feed_name": article.feed_name,
+                                "title": article.title,
+                                "link": article.link,
+                                "published": article.published.isoformat() if article.published else None,
+                                "feed_summary": article.summary,
+                                "ai_summary": article.ai_summary,
+                                "matched_interests": recipients,
+                            },
+                            timeout=10,
+                        )
+                    except Exception:
+                        success = False
+                else:
+                    success = False
+            article.sent = success
             session.commit()
-            logging.error(f"Error summarizing article {article.id}: {e}")
+        except Exception as e:
+            session.rollback()
+            logging.error(f"Error re-dispatching article {article.id}: {e}")
 
 
 # ASGI and Gradio imports
@@ -174,6 +256,18 @@ async def on_startup() -> None:
         session.commit()
     finally:
         session.close()
+    session = SessionLocal()
+    try:
+        feeds, _ = load_config()
+        for feed in feeds:
+            logging.info(f"Initial fetch: {feed['name']} ({feed['url']})")
+            fetch_and_store(session, feed)
+        summarize_and_push(session)
+    except Exception as e:
+        logging.error(f"Error in initial fetch/summarize: {e}")
+    finally:
+        session.close()
+
     # launch background polling loop
     asyncio.create_task(async_loop())
     # launch Gradio admin UI in background

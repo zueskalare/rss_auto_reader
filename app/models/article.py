@@ -7,6 +7,7 @@ from sqlalchemy import (
     Text,
     DateTime,
     Enum,
+    Boolean,
     UniqueConstraint,
 )
 from sqlalchemy.sql import func
@@ -33,6 +34,9 @@ class Article(Base):
     link = Column(String, nullable=True)
     published = Column(DateTime, nullable=True)
     summary = Column(Text, nullable=True)
+    ai_summary = Column(Text, nullable=True)
+    recipients = Column(Text, nullable=True)
+    sent = Column(Boolean, default=False, nullable=False)
     status = Column(Enum(ArticleStatus), default=ArticleStatus.new, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(

@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+import json
 from flask import Flask, request, jsonify, abort, render_template_string, redirect, url_for, flash
 from sqlalchemy.orm import Session
 
@@ -218,6 +219,9 @@ def get_articles():
                 "link": art.link,
                 "published": art.published.isoformat() if art.published else None,
                 "summary": art.summary,
+                "ai_summary": art.ai_summary,
+                "recipients": json.loads(art.recipients) if art.recipients else [],
+                "sent": art.sent,
                 "status": art.status.value,
                 "created_at": art.created_at.isoformat(),
                 "updated_at": art.updated_at.isoformat() if art.updated_at else None,
