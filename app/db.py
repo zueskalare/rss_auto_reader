@@ -14,9 +14,9 @@ Base = declarative_base()
 
 def init_db():
     """
-    Ensure the target database exists and all tables are created.
-    If the database itself is missing, connect to the default 'postgres' database
-    and issue a CREATE DATABASE, then initialize tables.
+    Create all tables in the target database. If it does not exist,
+    attempt to connect to the default 'postgres' database, create it,
+    and retry table creation.
     """
     from sqlalchemy.exc import OperationalError as SAOperationalError
     from sqlalchemy.engine.url import make_url
@@ -24,8 +24,7 @@ def init_db():
 
     try:
         Base.metadata.create_all(bind=engine)
-    except SAOperationalError as err:
-        # Database may not exist; attempt to create it and retry
+    except SAOperationalError:
         url = make_url(DATABASE_URL)
         default_url = url.set(database="postgres")
         db_name = url.database
@@ -35,5 +34,4 @@ def init_db():
             conn.execute("commit")
             conn.execute(f'CREATE DATABASE "{db_name}"')
         default_engine.dispose()
-        # Retry table creation on the target database
         Base.metadata.create_all(bind=engine)
