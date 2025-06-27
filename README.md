@@ -23,6 +23,8 @@
 - **Persistence**: Deduplicates and stores articles in PostgreSQL.
 - **Summarization**: Generates concise summaries using OpenAI.
 - **Webhook Dispatch**: Posts summarized data to a configurable HTTP endpoint.
+- **ASGI & Web UI**: Serves the Flask-based API and web interface via Starlette and Uvicorn.
+- **Async Polling Loop**: Executes the polling and summarization logic asynchronously in the background.
 - **Dockerized**: Ready to run via Docker Compose for easy deployment.
 
 ## Prerequisites
@@ -109,7 +111,8 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port ${API_PORT:-8000}
 ```
 
 ## Docker Setup
-Build and run both the database and worker with Docker Compose:
+The Docker container launches the service as an ASGI application (via Uvicorn), hosting both the web UI/API and the async polling loop. Build and run both the database and worker with Docker Compose:
+docker-compose up --build
 ```bash
 docker-compose up --build
 ```
@@ -150,7 +153,7 @@ RSS_llm/
 
 ## API Interface
 
-The service exposes the following HTTP endpoints (default port configurable via `API_PORT`, default 8000):
+The service runs as an ASGI application (Uvicorn + Starlette wrapping Flask for the web UI/API). It exposes the following HTTP endpoints (default port configurable via `API_PORT`, default 8000):
 
 ### Feeds
 - `GET /feeds`
