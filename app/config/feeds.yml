@@ -1,7 +1,4 @@
-# RSS feeds configuration
-# Define the list of feeds to monitor and the global polling interval (in seconds).
 feeds:
-  - name: ExampleFeed
-    url: https://example.com/rss
-# polling interval for checking feeds (defaults to environment variable POLL_INTERVAL or 300 seconds)
+- name: arxiv_cs
+  url: https://rss.arxiv.org/rss/cs
 interval: 300
