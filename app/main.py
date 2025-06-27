@@ -3,18 +3,7 @@ import logging
 import asyncio
 import pkgutil
 import importlib
-
-# Workaround for pydantic.v1 compatibility bug: ensure ForwardRef._evaluate accepts recursive_guard
-try:
-    import pydantic.v1.main as _pv1_main
-    import typing
-    if hasattr(typing.ForwardRef, '_evaluate'):
-        _orig_fwd = typing.ForwardRef._evaluate
-        def _evaluate(self, globalns=None, localns=None, recursive_guard=None):
-            return _orig_fwd(self, globalns=globalns, localns=localns)
-        typing.ForwardRef._evaluate = _evaluate
-except Exception:
-    pass
+import pydantic
 
 import feedparser
 import yaml
