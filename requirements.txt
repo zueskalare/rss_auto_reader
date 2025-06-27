@@ -12,6 +12,7 @@ PyYAML
 psycopg2-binary
 requests
 SQLAlchemy
+pydantic==2.6.2
 
 
 # necessary for langchain

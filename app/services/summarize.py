@@ -1,6 +1,7 @@
 import os
 import json
 from typing import List, Tuple, Dict
+from pydantic import BaseModel, Field, ValidationError, PydanticOutputParser
 
 
 from langchain_openai import ChatOpenAI
@@ -19,46 +20,62 @@ if OPENAI_API_BASE:
 
 LLM = ChatOpenAI(**_llm_kwargs)
 
+
+class SummarizationResult(BaseModel):
+    summary: str = Field(..., description="Concise summary of the article")
+    recipients: List[str] = Field(default_factory=list, description="Usernames to send the summary to")
+
+parser = PydanticOutputParser(pydantic_object=SummarizationResult)
+
 def summarize_articles(
     items: List[Tuple[str, str, str, str]], users: List[Dict[str, List[str]]]
-) -> List[Dict[str, object]]:
+) -> List[SummarizationResult]:
     """
-    Summarize multiple articles and select recipients based on user interests.
-    items: list of (title, link, published, feed_summary)
-    users: list of {'username': ..., 'interests': [...]}
-    Returns a list of dicts with keys: 'summary': str, 'recipients': List[str]
+    Summarize multiple articles (title, link, published, feed_summary) and
+    select recipients based on user interests. Returns structured results.
     """
+
+    # Format user interests
     user_info = "\n".join(
         f"- {u['username']}: {', '.join(u['interests'])}" for u in users
     )
-    content_lines = [
-        "Users and their interests:",
-        user_info,
-        "For each of the following articles, provide a JSON array of objects", 
-        "each with keys 'summary' (a concise summary) and 'recipients'", 
-        "(a list of usernames matching interests).", 
-        "Articles:",
-    ]
+
+    # Format articles
+    article_lines = []
     for title, link, published, feed_summary in items:
-        content_lines.extend([
-            f"---\nTitle: {title}",
-            f"Link: {link}",
-            f"Published: {published}",
-            f"Feed summary: {feed_summary}",
-        ])
+        article_lines.append(
+            f"Title: {title}\nLink: {link}\nPublished: {published}\nFeed Summary: {feed_summary}\n"
+        )
+
+    # Instructions for format
+    system_prompt = (
+        "You are an assistant that summarizes news articles and recommends them to users by matching topics of interest.\n"
+        f"Use this format strictly: {parser.get_format_instructions()}"
+    )
+
+    full_prompt = (
+        f"Users and their interests:\n{user_info}\n\n"
+        f"Articles to summarize:\n{''.join(article_lines)}"
+    )
+
     messages = [
-        SystemMessage(content="You are a helpful assistant that summarizes articles and filters recipients."),
-        HumanMessage(content="\n".join(content_lines)),
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=full_prompt)
     ]
-    resp = LLM(messages)
+
+    response = LLM.invoke(messages)
+
+    # Try parsing using the parser
     try:
-        results = json.loads(resp.content)
-    except Exception:
-        raise ValueError(f"Invalid JSON from summarizer: {resp.content}")
-    return results
+        result = parser.parse(response.content)
+        return [result]  # Because it's a single result
+    except Exception as e:
+        raise ValueError(f"Model returned invalid structured output:\n{response.content}\n\nError: {e}")
+
 
 def summarize_article(title: str, link: str) -> str:
     """
-    Backward-compatible single-article summary.
+    Backward-compatible single-article summary (returns only the summary text).
     """
-    return summarize_articles([(title, link, "", "")], [])[0]['summary']
+    out = summarize_articles([(title, link, "", "")], [])
+    return out[0].summary if out else ""
