@@ -1,15 +1,11 @@
 feedparser
-PyYAML
-SQLAlchemy
-psycopg2-binary
-requests
-openai
-APScheduler
 Flask
+langchain
 # ASGI server and middleware for async support
 starlette
 uvicorn[standard]
-langchain
-langchain_openai
-langchain_community
-lang
+openai
+PyYAML
+psycopg2-binary
+requests
+SQLAlchemy
