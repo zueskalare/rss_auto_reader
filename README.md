@@ -49,16 +49,21 @@ interval: 300
 ```
 
 ### Environment Variables
-Create a `.env` file or export these variables:
+Copy `.env.example` to `.env` and update the values, or export these variables manually.
+
 ```dotenv
-# OpenAI credentials
-OPENAI_API_KEY=sk-...
+# OpenAI API key for summarization
+OPENAI_API_KEY=your_openai_api_key
 
-# Webhook for summaries
-WEBHOOK_URL=https://your.service/webhook
+# Webhook URL for dispatching summaries
+WEBHOOK_URL=https://your.webhook.endpoint
 
-# (Optional) Database and polling settings
-DATABASE_URL=postgresql://user:pass@host:5432/dbname
+# PostgreSQL settings (used by Docker Compose)
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=rss
+
+# Polling interval in seconds
 POLL_INTERVAL=300
 ```
 
