@@ -14,4 +14,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy entire project and preserve package structure
 COPY . .
 
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${API_PORT:-8000}"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${API_PORT:-8000} --reload"]
