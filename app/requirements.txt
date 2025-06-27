@@ -1,0 +1,7 @@
+feedparser
+PyYAML
+SQLAlchemy
+psycopg2-binary
+requests
+openai
+APScheduler
