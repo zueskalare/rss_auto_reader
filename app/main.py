@@ -224,6 +224,28 @@ async def dispatch_loop() -> None:
             session.close()
         await asyncio.sleep(dispatch_interval)
 
+async def plugin_loop() -> None:
+    """Background task: run custom scheduled plugins at a configured interval."""
+    plugin_interval = int(os.getenv("PLUGIN_INTERVAL", 86400))
+    plugins_path = os.path.join(BASE_DIR, "plugins")
+    while True:
+        for _, name, _ in pkgutil.iter_modules([plugins_path]):
+            try:
+                module = importlib.import_module(f"{__package__}.plugins.{name}")
+                plugin = getattr(module, "plugin", None)
+                if plugin:
+                    session = SessionLocal()
+                    try:
+                        logging.info(f"Running plugin: {plugin.name}")
+                        plugin.run(session)
+                    except Exception as e:
+                        logging.error(f"Error in plugin {plugin.name}: {e}")
+                    finally:
+                        session.close()
+            except Exception as e:
+                logging.error(f"Error loading plugin module {name}: {e}")
+        await asyncio.sleep(plugin_interval)
+
 @app.on_event("startup")
 async def on_startup() -> None:
     # initialize database tables and seed initial feed/user configs
