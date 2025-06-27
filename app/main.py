@@ -1,24 +1,23 @@
 import os
 import time
 import logging
+import threading
 
 import feedparser
 import yaml
-import requests
-import openai
 
 from datetime import datetime
 from sqlalchemy.orm import Session
 
 from .db import SessionLocal, init_db
 from .models import Article, ArticleStatus
+from .api import start_api
+from .llm import summarize_article
+from .dispatcher import dispatch_summary
 
 BASE_DIR = os.path.dirname(__file__)
 CONFIG_PATH = os.path.join(BASE_DIR, "feeds.yml")
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", 300))
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-openai.api_key = os.getenv("OPENAI_API_KEY")
-
 
 def load_config():
     with open(CONFIG_PATH, "r") as f:
@@ -55,40 +54,16 @@ def summarize_and_push(session: Session):
     articles = session.query(Article).filter_by(status=ArticleStatus.new).all()
     for article in articles:
         try:
-            prompt = (
-                f"Please provide a concise summary for the following article:\n"
-                f"Title: {article.title}\n"
-                f"Link: {article.link}\n"
-            )
-            response = openai.Completion.create(
-                engine="text-davinci-003",
-                prompt=prompt,
-                max_tokens=150,
-                temperature=0.5,
-            )
-            summary = response.choices[0].text.strip()
+            summary = summarize_article(article.title, article.link)
             article.summary = summary
             article.status = ArticleStatus.summarized
             session.commit()
-            if WEBHOOK_URL:
-                payload = {
-                    "id": article.id,
-                    "feed_name": article.feed_name,
-                    "title": article.title,
-                    "link": article.link,
-                    "published": article.published.isoformat()
-                    if article.published
-                    else None,
-                    "summary": summary,
-                }
-                requests.post(WEBHOOK_URL, json=payload).raise_for_status()
-            else:
-                logging.warning("WEBHOOK_URL not set; skipping webhook push")
+            dispatch_summary(article, summary)
         except Exception as e:
             session.rollback()
             article.status = ArticleStatus.error
             session.commit()
-            logging.error(f"Error processing article {article.id}: {e}")
+            logging.error(f"Error summarizing article {article.id}: {e}")
 
 
 def main():
@@ -97,11 +72,13 @@ def main():
         format="%(asctime)s %(levelname)s: %(message)s",
     )
     init_db()
-    feeds, interval = load_config()
+    api_thread = threading.Thread(target=start_api, daemon=True)
+    api_thread.start()
     logging.info("Starting RSS polling loop")
     while True:
         session = SessionLocal()
         try:
+            feeds, interval = load_config()
             for feed in feeds:
                 logging.info(f"Fetching feed: {feed['name']} ({feed['url']})")
                 fetch_and_store(session, feed)

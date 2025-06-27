@@ -65,6 +65,15 @@ POSTGRES_DB=rss
 
 # Polling interval in seconds
 POLL_INTERVAL=300
+# HTTP API port
+API_PORT=8000
+
+# Summarization model (for OpenAI-compatible or self-hosted endpoints)
+MODEL_NAME=gpt-4.1
+MODEL_TEMPERATURE=0.5
+MODEL_MAX_TOKENS=150
+# Optional: override base URL for self-hosted OpenAI-compatible API
+OPENAI_API_BASE=
 ```
 
 ## Database Initialization
@@ -85,10 +94,15 @@ Build and run both the database and worker with Docker Compose:
 docker-compose up --build
 ```
 
+The HTTP API will be exposed on the port configured by `API_PORT` (default 8000).
+
 ## Project Structure
 ```
 RSS_llm/
 ├── app/
+│   ├── api.py            # HTTP API routes for feed/article management
+│   ├── dispatcher.py     # Webhook dispatcher for summarized articles
+│   ├── llm.py            # LLM client for summarization (OpenAI or self-hosted)
 │   ├── db.py
 │   ├── models.py
 │   ├── main.py
@@ -98,6 +112,35 @@ RSS_llm/
 ├── .gitignore
 └── README.md
 ```
+
+## API Interface
+
+The service exposes the following HTTP endpoints (default port configurable via `API_PORT`, default 8000):
+
+### Feeds
+- `GET /feeds`
+  List configured RSS feeds and polling interval.
+- `POST /feeds`
+  Add a new feed. JSON body: `{ "name": "...", "url": "..." }`.
+- `PUT /feeds/{name}`
+  Update the URL of an existing feed. JSON body: `{ "url": "..." }`.
+- `DELETE /feeds/{name}`
+  Remove a feed by name.
+
+### Articles
+- `GET /articles`
+  List stored articles. Optional query parameters:
+  - `since` (ISO 8601 timestamp) — only articles updated at or after this time.
+  - `status` (comma-separated `new`, `summarized`, `error`) — filter by status.
+  - `limit` (integer) — max number of articles to return.
+
+### Fetch
+- `POST /fetch`
+  Trigger an immediate fetch and summarization run. Optional JSON body: `{ "feeds": ["FeedName1", "..."] }`.
+
+### Health
+- `GET /health`
+  Health check; returns `{ "status": "ok" }`.
 
 ## Contributing
 Contributions, issues, and feature requests are welcome. Feel free to open a pull request!
