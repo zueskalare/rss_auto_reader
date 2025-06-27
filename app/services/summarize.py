@@ -1,8 +1,8 @@
 import os
 import json
 from typing import List, Tuple, Dict
-from pydantic import BaseModel, Field, ValidationError, PydanticOutputParser
-
+from pydantic.v1 import BaseModel, Field, ValidationError
+from langchain.output_parsers import PydanticOutputParser
 
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
