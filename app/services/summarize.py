@@ -2,8 +2,8 @@ import os
 from typing import List, Tuple
 
 
-from langchain.chat_models import ChatOpenAI
-from langchain.schema import SystemMessage, HumanMessage
+from langchain_openai import ChatOpenAI
+from langchain_core.messages import SystemMessage, HumanMessage
 
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1")
 TEMPERATURE = float(os.getenv("MODEL_TEMPERATURE", 0.5))

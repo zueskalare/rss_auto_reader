@@ -1,6 +1,8 @@
 feedparser
 Flask
 langchain
+langchain-openai
+langchain-core
 gradio
 # ASGI server and middleware for async support
 starlette
