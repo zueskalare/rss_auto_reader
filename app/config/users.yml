@@ -11,8 +11,8 @@
 #     - "cloud"
 #     - "python"
 users:
-  - username: demo
-    webhook: https://httpbin.org/post
+  - username: Jie
+    webhook: http://localhost:10086/webhooks/flows/88d37d5a-0b83-454c-9514-126be1648a11/sync
     interests:
       - "AI"
       - "OpenAI"

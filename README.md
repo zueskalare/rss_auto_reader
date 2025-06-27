@@ -86,6 +86,10 @@ POSTGRES_DB=rss
 
 # Polling interval in seconds
 POLL_INTERVAL=300
+# Dispatch interval in seconds (how often to send AI summaries; default: 3600)
+DISPATCH_INTERVAL=3600
+# Plugin interval in seconds (how often to run custom plugins; default: 86400)
+PLUGIN_INTERVAL=86400
 # HTTP API port
 API_PORT=8000
 
@@ -159,7 +163,8 @@ RSS_llm/
 │   ├── requirements.txt
 │   └── services/
 │       ├── dispatcher.py     # Webhook dispatcher for summarized articles
-│       └── summarize.py      # Summarization logic
+   │       └── summarize.py      # Summarization logic
+   │   ├── plugins/            # Custom plugins (e.g. daily_summary)
 ├── Dockerfile
 ├── docker-compose.yml
 ├── .env.example

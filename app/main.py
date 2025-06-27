@@ -1,6 +1,8 @@
 import os
 import logging
 import asyncio
+import pkgutil
+import importlib
 
 import feedparser
 import yaml
@@ -128,33 +130,8 @@ def summarize_and_push(session: Session):
                 article.ai_summary = summary
                 article.recipients = json.dumps(recipients)
                 article.status = ArticleStatus.summarized
-                # dispatch to selected users
-                success = True
-                for username in recipients:
-                    u = session.query(User).filter_by(username=username).first()
-                    if u and u.webhook:
-                        try:
-                            requests.post(
-                                u.webhook,
-                                json={
-                                    "id": article.id,
-                                    "feed_name": article.feed_name,
-                                    "title": article.title,
-                                    "link": article.link,
-                                    "published": article.published.isoformat() if article.published else None,
-                                    "feed_summary": article.summary,
-                                    "ai_summary": summary,
-                                    "matched_interests": recipients,
-                                },
-                                timeout=10,
-                            )
-                        except Exception:
-                            success = False
-                    else:
-                        success = False
-                article.sent = success
+                article.sent = False
                 session.commit()
-                dispatch_summary(article, summary)
         except Exception as e:
             session.rollback()
             for article in batch:
@@ -167,39 +144,6 @@ def summarize_and_push(session: Session):
                 f"Error summarizing batch starting with article {batch[0].id if batch else 'N/A'}: {e}"
             )
 
-    # retry dispatch for previously summarized but unsent articles
-    unsent = session.query(Article).filter_by(status=ArticleStatus.summarized, sent=False).all()
-    for article in unsent:
-        try:
-            recipients = json.loads(article.recipients or "[]")
-            success = True
-            for username in recipients:
-                u = session.query(User).filter_by(username=username).first()
-                if u and u.webhook:
-                    try:
-                        requests.post(
-                            u.webhook,
-                            json={
-                                "id": article.id,
-                                "feed_name": article.feed_name,
-                                "title": article.title,
-                                "link": article.link,
-                                "published": article.published.isoformat() if article.published else None,
-                                "feed_summary": article.summary,
-                                "ai_summary": article.ai_summary,
-                                "matched_interests": recipients,
-                            },
-                            timeout=10,
-                        )
-                    except Exception:
-                        success = False
-                else:
-                    success = False
-            article.sent = success
-            session.commit()
-        except Exception as e:
-            session.rollback()
-            logging.error(f"Error re-dispatching article {article.id}: {e}")
 
 
 # ASGI and Gradio imports
@@ -213,7 +157,43 @@ app = Starlette()
 app.mount("/", WSGIMiddleware(flask_app))  # mount Flask app (Flask Web UI & API)
 
 
-async def async_loop() -> None:
+def dispatch_pending(session: Session):
+    """Send any 'summarized' but unsent articles to their recipients and dispatch_summary."""
+    unsent = session.query(Article).filter_by(status=ArticleStatus.summarized, sent=False).all()
+    for article in unsent:
+        recipients = json.loads(article.recipients or "[]")
+        success = True
+        for username in recipients:
+            u = session.query(User).filter_by(username=username).first()
+            if u and u.webhook:
+                try:
+                    requests.post(
+                        u.webhook,
+                        json={
+                            "id": article.id,
+                            "feed_name": article.feed_name,
+                            "title": article.title,
+                            "link": article.link,
+                            "published": article.published.isoformat() if article.published else None,
+                            "feed_summary": article.summary,
+                            "ai_summary": article.ai_summary,
+                            "matched_interests": recipients,
+                        },
+                        timeout=10,
+                    )
+                except Exception:
+                    success = False
+            else:
+                success = False
+        if success:
+            article.sent = True
+            session.commit()
+            dispatch_summary(article, article.ai_summary)
+        else:
+            session.rollback()
+
+
+async def poll_loop() -> None:
     """Background task: poll feeds and process articles asynchronously."""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
     while True:
@@ -225,10 +205,24 @@ async def async_loop() -> None:
                 fetch_and_store(session, feed)
             summarize_and_push(session)
         except Exception as e:
-            logging.error(f"Error in main loop: {e}")
+            logging.error(f"Error in poll loop: {e}")
         finally:
             session.close()
         await asyncio.sleep(interval)
+
+
+async def dispatch_loop() -> None:
+    """Background task: retry and send dispatches at a configured interval."""
+    dispatch_interval = int(os.getenv("DISPATCH_INTERVAL", 3600))
+    while True:
+        session = SessionLocal()
+        try:
+            dispatch_pending(session)
+        except Exception as e:
+            logging.error(f"Error in dispatch loop: {e}")
+        finally:
+            session.close()
+        await asyncio.sleep(dispatch_interval)
 
 @app.on_event("startup")
 async def on_startup() -> None:
@@ -268,8 +262,10 @@ async def on_startup() -> None:
     finally:
         session.close()
 
-    # launch background polling loop
-    asyncio.create_task(async_loop())
+    # launch background tasks: polling/summarization and dispatch loops
+    asyncio.create_task(poll_loop())
+    asyncio.create_task(dispatch_loop())
+    asyncio.create_task(plugin_loop())
     # launch Gradio admin UI in background
     ui_port = int(os.getenv("UI_PORT", 7860))
     gr_interface.launch(server_name="0.0.0.0", server_port=ui_port)

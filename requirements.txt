@@ -12,3 +12,8 @@ PyYAML
 psycopg2-binary
 requests
 SQLAlchemy
+
+
+# necessary for langchain
+langchain-community
+langchain-openai
