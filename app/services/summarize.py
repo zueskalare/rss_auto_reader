@@ -25,6 +25,12 @@ class SummarizationResult(BaseModel):
     summary: str = Field(..., description="Concise summary of the article")
     recipients: List[str] = Field(default_factory=list, description="Usernames to send the summary to")
 
+# parser = PydanticOutputParser(pydantic_object=SummarizationResult)
+
+class SummarizationResult(BaseModel):
+    summary: str = Field(..., description="Concise summary of the article")
+    recipients: List[str] = Field(default_factory=list, description="Usernames to send the summary to")
+
 parser = PydanticOutputParser(pydantic_object=SummarizationResult)
 
 def summarize_articles(
@@ -49,33 +55,36 @@ def summarize_articles(
 
     # Instructions for format
     system_prompt = (
-        "You are an assistant that summarizes news articles and recommends them to users by matching topics of interest.\n"
-        f"Use this format strictly: {parser.get_format_instructions()}"
+        '''You are an assistant that summarizes news articles and recommends them to users by matching each article to their topics of interest.
+
+For each article:
+- Write a concise **summary in Markdown format**.
+- **Include the article link**.
+- Highlight key parts of the summary that match a user's interests using **bold text**.'''
     )
 
     full_prompt = (
         f"Users and their interests:\n{user_info}\n\n"
         f"Articles to summarize:\n{''.join(article_lines)}"
     )
-
+    llm = LLM.with_structured_output(SummarizationResult)
     messages = [
         SystemMessage(content=system_prompt),
         HumanMessage(content=full_prompt)
     ]
 
-    response = LLM.invoke(messages)
+    response = llm.invoke(messages)
 
     # Try parsing using the parser
     try:
-        result = parser.parse(response.content)
-        return [result]  # Because it's a single result
+        
+        return [response.dict()]  # Because it's a single result
     except Exception as e:
-        raise ValueError(f"Model returned invalid structured output:\n{response.content}\n\nError: {e}")
-
+        raise ValueError(f"Model returned invalid structured output:\n{response}\n\nError: {e}")
 
 def summarize_article(title: str, link: str) -> str:
     """
     Backward-compatible single-article summary (returns only the summary text).
     """
     out = summarize_articles([(title, link, "", "")], [])
-    return out[0].summary if out else ""
+    return out[0].get('summary', '')
