@@ -17,7 +17,7 @@ services:
     depends_on:
       - db
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-rss_user}:${POSTGRES_PASSWORD:-rss_password}@db:5432/${POSTGRES_DB:-rss_db}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rss_user}:${POSTGRES_PASSWORD:-rss_password}@db:5432/${POSTGRES_DB:-rss_db}
       OPENAI_API_KEY: ABC # ${OPENAI_API_KEY}
       WEBHOOK_URL: ${WEBHOOK_URL}
       POLL_INTERVAL: ${POLL_INTERVAL:-300}

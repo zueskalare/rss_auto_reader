@@ -13,4 +13,5 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 def init_db():
+    print(DATABASE_URL)
     Base.metadata.create_all(bind=engine)

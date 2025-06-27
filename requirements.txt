@@ -7,3 +7,6 @@ openai
 APScheduler
 Flask
 langchain
+langchain_openai
+langchain_community
+lang
