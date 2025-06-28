@@ -1,19 +1,18 @@
 feedparser
 Flask
-langchain
-langchain-openai
+langchain==0.3.26
+langchain-openai==0.3.27
 gradio
 # ASGI server and middleware for async support
 starlette
 uvicorn[standard]
-openai
+openai==1.93.0
 PyYAML
 psycopg2-binary
 requests
 SQLAlchemy
-pydantic==2.6.2
+pydantic==2.11.7
 
 
 # necessary for langchain
-langchain-community
-langchain-openai
+langchain-community==0.3.26

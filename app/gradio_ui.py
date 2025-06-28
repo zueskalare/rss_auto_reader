@@ -6,6 +6,8 @@ from .models.feed import Feed
 from .models.user import User
 from .models.article import Article
 
+from .main import fetch_and_store, summarize_and_push, dispatch_pending
+
 def get_feeds_table():
     session: Session = SessionLocal()
     try:
@@ -85,6 +87,27 @@ def get_articles_table():
     finally:
         session.close()
 
+def manual_fetch_and_summarize():
+    """Fetch new entries for all feeds and summarize them immediately."""
+    session: Session = SessionLocal()
+    try:
+        feeds = session.query(Feed).all()
+        for f in feeds:
+            fetch_and_store(session, {"name": f.name, "url": f.url})
+        summarize_and_push(session)
+    finally:
+        session.close()
+    return get_articles_table()
+
+def manual_dispatch():
+    """Dispatch any pending summarized articles to configured webhooks now."""
+    session: Session = SessionLocal()
+    try:
+        dispatch_pending(session)
+    finally:
+        session.close()
+    return get_articles_table()
+
 def build_interface():
     with gr.Blocks() as demo:
         gr.Markdown("# Admin UI: Articles, Feeds & Webhooks")
@@ -94,7 +117,10 @@ def build_interface():
             headers=["ID","Feed","Title","Link","Published","Feed Summary","AI Summary","Recipients","Sent","Status","Created","Updated"],
             interactive=False,
         )
-        gr.Button("Refresh Articles").click(get_articles_table, None, art_table)
+        with gr.Row():
+            gr.Button("Refresh Articles").click(get_articles_table, None, art_table)
+            gr.Button("Fetch & Summarize Now").click(manual_fetch_and_summarize, None, art_table)
+            gr.Button("Dispatch Pending").click(manual_dispatch, None, art_table)
 
         gr.Markdown("## Feeds")
         feed_table = gr.Dataframe(headers=["Name","URL"], interactive=False)

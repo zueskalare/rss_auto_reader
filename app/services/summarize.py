@@ -4,10 +4,11 @@ from typing import List, Tuple, Dict
 from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
+import logging
 
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1")
 TEMPERATURE = float(os.getenv("MODEL_TEMPERATURE", 0.5))
-MAX_TOKENS = int(os.getenv("MODEL_MAX_TOKENS", 150))
+MAX_TOKENS = int(os.getenv("MODEL_MAX_TOKENS", 4096))
 OPENAI_API_BASE = os.getenv("OPENAI_API_BASE") or None
 
 _llm_kwargs = {"model_name": MODEL_NAME, "temperature": TEMPERATURE}
@@ -19,11 +20,6 @@ if OPENAI_API_BASE:
 LLM = ChatOpenAI(**_llm_kwargs)
 
 
-class SummarizationResult(BaseModel):
-    summary: str = Field(..., description="Concise summary of the article")
-    recipients: List[str] = Field(default_factory=list, description="Usernames to send the summary to")
-
-
 def summarize_articles(
     items: List[Tuple[str, str, str, str]], users: List[Dict[str, List[str]]]
 ) -> List[dict]:
@@ -31,6 +27,11 @@ def summarize_articles(
     Summarize multiple articles (title, link, published, feed_summary) and
     select recipients based on user interests. Returns structured results.
     """
+
+    class SummarizationResult(BaseModel):
+        summary: str = Field(..., description="Concise summary of the article")
+        recipients: List[str] = Field(default_factory=list, description="Usernames to send the summary to")
+
 
     # Format user interests
     user_info = "\n".join(
@@ -58,6 +59,7 @@ For each article:
         f"Users and their interests:\n{user_info}\n\n"
         f"Articles to summarize:\n{''.join(article_lines)}"
     )
+    
     llm = LLM.with_structured_output(SummarizationResult)
     messages = [
         SystemMessage(content=system_prompt),
@@ -65,6 +67,7 @@ For each article:
     ]
 
     response = llm.invoke(messages)
+    # print(f"LLM response: {response}")
 
     # Try parsing using the parser
     try:
