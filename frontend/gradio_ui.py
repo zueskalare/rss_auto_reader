@@ -87,7 +87,7 @@ def build_interface():
             interactive=False,
         )
         with gr.Row():
-            gr.Button("Refresh Articles").click(get_feeds_table, None, art_table)
+            gr.Button("Refresh Articles").click(get_articles_table, None, art_table)
             gr.Button("Fetch & Summarize Now").click(manual_fetch_and_summarize, None, art_table)
             gr.Button("Dispatch Pending").click(manual_dispatch, None, art_table)
 
