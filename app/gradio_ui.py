@@ -1,12 +1,10 @@
+import asyncio
 import gradio as gr
 from sqlalchemy.orm import Session
-
 from .db import SessionLocal
 from .models.feed import Feed
 from .models.user import User
 from .models.article import Article
-
-from .main import fetch_and_store, summarize_and_push, dispatch_pending
 
 def get_feeds_table():
     session: Session = SessionLocal()
@@ -87,25 +85,35 @@ def get_articles_table():
     finally:
         session.close()
 
-def manual_fetch_and_summarize():
+async def manual_fetch_and_summarize():
     """Fetch new entries for all feeds and summarize them immediately."""
-    session: Session = SessionLocal()
-    try:
-        feeds = session.query(Feed).all()
-        for f in feeds:
-            fetch_and_store(session, {"name": f.name, "url": f.url})
-        summarize_and_push(session)
-    finally:
-        session.close()
+    from .main import fetch_and_store, summarize_and_push
+
+    def job():
+        session = SessionLocal()
+        try:
+            feeds = session.query(Feed).all()
+            for f in feeds:
+                fetch_and_store(session, {"name": f.name, "url": f.url})
+            summarize_and_push(session)
+        finally:
+            session.close()
+
+    asyncio.create_task(asyncio.to_thread(job))
     return get_articles_table()
 
-def manual_dispatch():
+async def manual_dispatch():
     """Dispatch any pending summarized articles to configured webhooks now."""
-    session: Session = SessionLocal()
-    try:
-        dispatch_pending(session)
-    finally:
-        session.close()
+    from .main import dispatch_pending
+
+    def job():
+        session = SessionLocal()
+        try:
+            dispatch_pending(session)
+        finally:
+            session.close()
+
+    asyncio.create_task(asyncio.to_thread(job))
     return get_articles_table()
 
 def build_interface():
