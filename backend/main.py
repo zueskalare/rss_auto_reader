@@ -10,15 +10,15 @@ import yaml
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from .db import SessionLocal, init_db
-from .models.article import Article, ArticleStatus
-from .api.views import router as api_router
+from app.db import SessionLocal, init_db
+from app.models.article import Article, ArticleStatus
+from app.api.views import router as api_router
 import json
 import requests
-from .services.summarize import summarize_article, summarize_articles
-from .services.dispatcher import dispatch_summary
-from .models.feed import Feed
-from .models.user import User
+from app.services.summarize import summarize_article, summarize_articles
+from app.services.dispatcher import dispatch_summary
+from app.models.feed import Feed
+from app.models.user import User
 
 
 # --- User interest config/support ---
