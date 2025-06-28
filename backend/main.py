@@ -22,7 +22,7 @@ from app.models.user import User
 
 
 # --- User interest config/support ---
-BASE_DIR = os.path.dirname(__file__)
+BASE_DIR = os.path.join(os.path.dirname(__file__),'app')
 USERS_CONFIG_PATH = os.path.join(BASE_DIR, "config", "users.yml")
 
 def load_users():
@@ -200,7 +200,7 @@ async def plugin_loop():
     path = os.path.join(BASE_DIR, "plugins")
     while True:
         for _, name, _ in pkgutil.iter_modules([path]):
-            module = importlib.import_module(f"{__package__}.plugins.{name}")
+            module = importlib.import_module(f"app.plugins.{name}")
             plugin = getattr(module, "plugin", None)
             if plugin:
                 await asyncio.to_thread(plugin.run, SessionLocal())

@@ -1,6 +1,6 @@
 FROM python:3.12
 
-WORKDIR /app
+WORKDIR /run
 
 # Install system dependencies for PostgreSQL client (if needed)
 RUN apt-get update && apt-get install -y \
@@ -12,7 +12,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . .
+COPY backend/ .
 
 # Launch the FastAPI backend
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "${API_PORT:-8000}"]

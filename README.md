@@ -111,11 +111,11 @@ python -c "from app.db import init_db; init_db()"
 
 ## Running Locally
 ```bash
-# Ensure venv activated and env vars set (including UI_PORT for Gradio UI)
+# Ensure venv activated and environment variables set (including UI_PORT for Gradio UI)
 # Launch the backend API server:
-uvicorn app.main:app --reload --host 127.0.0.1 --port ${API_PORT:-8000}
+uvicorn backend.main:app --reload --host 127.0.0.1 --port ${API_PORT:-8000}
 # In a separate shell (with same env), launch the Gradio frontend:
-python -m app.ui_main
+python frontend/ui_main.py
 # The API will be at http://127.0.0.1:${API_PORT:-8000}/api
 # The Gradio Admin UI will be at http://127.0.0.1:${UI_PORT:-7860}/
 ```

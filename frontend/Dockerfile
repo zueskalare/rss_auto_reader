@@ -1,6 +1,6 @@
 FROM python:3.12
 
-WORKDIR /app
+WORKDIR /run
 
 # Install system dependencies (PostgreSQL client, if needed by Gradio UI for DB access)
 RUN apt-get update && apt-get install -y \
@@ -12,7 +12,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . .
+COPY frontend/ .
 
 # Launch the Gradio frontend
-CMD ["python", "frontend/ui_main.py"]
+CMD ["python", "ui_main.py"]

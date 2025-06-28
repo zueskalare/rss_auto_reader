@@ -156,7 +156,7 @@ def get_articles(
 @router.post("/fetch", status_code=status.HTTP_204_NO_CONTENT)
 def trigger_fetch(fetch_in: Optional[FetchIn] = None, db: Session = Depends(get_db)):
     """Trigger immediate fetch and summarization for all or specified feeds"""
-    from backend.main import fetch_and_store, summarize_and_push
+    from ...main import fetch_and_store, summarize_and_push
 
     feeds = db.query(Feed).all()
     selected = feeds
@@ -171,7 +171,7 @@ def trigger_fetch(fetch_in: Optional[FetchIn] = None, db: Session = Depends(get_
 @router.post("/dispatch", status_code=status.HTTP_204_NO_CONTENT)
 def trigger_dispatch(db: Session = Depends(get_db)):
     """Trigger immediate dispatch of any pending summarized articles"""
-    from backend.main import dispatch_pending
+    from ...main import dispatch_pending
 
     dispatch_pending(db)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
