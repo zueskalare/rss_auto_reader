@@ -135,7 +135,7 @@ def get_articles(
     results = query.all()
     return [
         {
-            "id": art.id,
+            "id": art.link,
             "feed_name": art.feed_name,
             "entry_id": art.entry_id,
             "title": art.title,

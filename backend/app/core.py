@@ -47,7 +47,7 @@ def dispatch_to_user_webhooks(article, summary):
             webhook = user.webhook
             if webhook:
                 payload = {
-                    "id": article.id,
+                    "id": article.link,
                     "feed_name": article.feed_name,
                     "title": article.title,
                     "link": article.link,
@@ -126,7 +126,7 @@ def dispatch_pending(session: Session):
             if u and u.webhook:
                 try:
                     requests.post(u.webhook, json={
-                        "id": art.id, "feed_name": art.feed_name,
+                        "id": art.link, "feed_name": art.feed_name,
                         "title": art.title, "link": art.link,
                         "published": art.published.isoformat() if art.published else None,
                         "feed_summary": art.summary, "ai_summary": art.ai_summary,

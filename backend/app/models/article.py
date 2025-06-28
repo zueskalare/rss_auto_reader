@@ -27,11 +27,10 @@ class Article(Base):
         UniqueConstraint("feed_name", "entry_id", name="uix_feed_entry"),
     )
 
-    id = Column(Integer, primary_key=True, index=True)
     feed_name = Column(String, index=True, nullable=False)
     entry_id = Column(String, index=True, nullable=False)
     title = Column(String, nullable=True)
-    link = Column(String, nullable=True)
+    link = Column(String, primary_key=True, index=True, nullable=False)
     published = Column(DateTime, nullable=True)
     summary = Column(Text, nullable=True)
     ai_summary = Column(Text, nullable=True)

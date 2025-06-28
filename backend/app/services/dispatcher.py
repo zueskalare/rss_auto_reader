@@ -13,7 +13,7 @@ def dispatch_summary(article, summary: str) -> None:
         logging.warning("WEBHOOK_URL not set; skipping webhook push")
         return
     payload = {
-        "id": article.id,
+        "id": article.link,
         "feed_name": article.feed_name,
         "title": article.title,
         "link": article.link,
@@ -23,4 +23,4 @@ def dispatch_summary(article, summary: str) -> None:
     try:
         requests.post(WEBHOOK_URL, json=payload).raise_for_status()
     except Exception as e:
-        logging.error(f"Error dispatching summary for article {article.id}: {e}")
+        logging.error(f"Error dispatching summary for article {article.link}: {e}")
