@@ -1,4 +1,4 @@
-feeds:
-- name: Nature
-  url: https://www.nature.com/nature.rss
-interval: 300
+# feeds:
+# - name: Nature
+#   url: https://www.nature.com/nature.rss
+# interval: 300

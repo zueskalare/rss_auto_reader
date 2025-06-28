@@ -15,7 +15,7 @@ from app.models.article import Article, ArticleStatus
 import json
 import requests
 from app.services.summarize import summarize_article
-from app.services.dispatcher import dispatch_summary
+# from app.services.dispatcher import dispatch_summary 
 from app.models.feed import Feed
 from app.models.user import User
 
@@ -164,7 +164,7 @@ def dispatch_pending(session: Session):
             art.sent = True
             art.status = ArticleStatus.sent
             session.commit()
-            dispatch_summary(art, art.ai_summary)
+            # dispatch_summary(art, art.ai_summary) # ! not necessary, if you want to use webhook, you can use the above code
         else:
             session.rollback()
 
