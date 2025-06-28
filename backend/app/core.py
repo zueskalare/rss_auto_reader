@@ -8,12 +8,13 @@ import yaml
 
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.db import SessionLocal
 from app.models.article import Article, ArticleStatus
 import json
 import requests
-from app.services.summarize import summarize_article, summarize_articles
+from app.services.summarize import summarize_article
 from app.services.dispatcher import dispatch_summary
 from app.models.feed import Feed
 from app.models.user import User
@@ -96,17 +97,25 @@ def fetch_and_store(session: Session, feed: dict):
     parsed = feedparser.parse(feed["url"])
     for entry in parsed.entries:
         entry_id = entry.get("id") or entry.get("link")
-        if not session.query(Article).filter_by(feed_name=feed["name"], entry_id=entry_id).first():
-            published = None
-            if entry.get("published_parsed"):
-                published = datetime(*entry.published_parsed[:6])
-            article = Article(
-                feed_name=feed["name"], entry_id=entry_id,
-                title=entry.get("title"), link=entry.get("link"),
-                published=published, summary=entry.get("summary"),
-                status=ArticleStatus.new)
-            session.add(article)
-    session.commit()
+        if session.query(Article).filter_by(feed_name=feed["name"], entry_id=entry_id).first():
+            continue
+        published = None
+        if entry.get("published_parsed"):
+            published = datetime(*entry.published_parsed[:6])
+        article = Article(
+            feed_name=feed["name"],
+            entry_id=entry_id,
+            title=entry.get("title"),
+            link=entry.get("link"),
+            published=published,
+            summary=entry.get("summary"),
+            status=ArticleStatus.new,
+        )
+        session.add(article)
+        try:
+            session.commit()
+        except IntegrityError:
+            session.rollback()
 
 def summarize_and_push(session: Session):
     new_articles = session.query(Article).filter_by(status=ArticleStatus.new).all()
@@ -115,22 +124,22 @@ def summarize_and_push(session: Session):
     offset = 1
     for i in range(0, len(new_articles), offset):
         batch = new_articles[i:i+offset]
-        inputs = [(a.title, a.link,
-                   a.published.isoformat() if a.published else "",
-                   a.summary or "") for a in batch]
-        try:
-            results = summarize_articles(inputs, user_data)
-            summaries = results.get("summaries", [])
-            recepients = results.get("recipients", [])
-            for art, summary, recs in zip(batch, summaries, recepients):
-                art.ai_summary = summary
-                art.recipients = json.dumps(recs)
+        
+        for art in batch:
+            try:
+                inp = (art.title, art.link,
+                    art.published.isoformat() if art.published else "",
+                    art.summary or "")
+                summaries = summarize_article(inp, user_data)
+                art.ai_summary = summaries.get("summaries", '')
+                art.recipients = json.dumps(summaries.get("recipients", []))
                 art.status = ArticleStatus.summarized
                 art.sent = False
                 session.commit()
-        except Exception:
-            # If summarization fails, leave articles as 'new' so they'll be retried later
-            session.rollback()
+    
+            except Exception:
+                # If summarization fails, leave articles as 'new' so they'll be retried later
+                session.rollback()
 
 def dispatch_pending(session: Session):
     unsent = session.query(Article).filter_by(status=ArticleStatus.summarized, sent=False).all()

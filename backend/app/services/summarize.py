@@ -10,8 +10,8 @@ import yaml
 
 
 
-def summarize_articles(
-    items: List[Tuple[str, str, str, str]], users: List[Dict[str, List[str]]]
+def summarize_article(
+    items: Tuple[str, str, str, str], users: List[Dict[str, List[str]]]
 ) -> List[dict]:
     """
     Summarize multiple articles (title, link, published, feed_summary) and
@@ -40,11 +40,8 @@ def summarize_articles(
     LLM = ChatOpenAI(**_llm_kwargs)
 
     class SummarizationResult(BaseModel):
-        summaries: List[str] = Field(default_factory=list, description="Summaries of articles")
-        recipients: List[List[str]] = Field(
-            default_factory=list, description="List of users interested in each article"
-        )
-
+        summaries: str = Field(default_factory=str, description="Concise summary of the article in Markdown format")
+        recipients: List[str] = Field(default_factory=list, description="List of users interested in the article")
     print(f"Summarizing {len(items)} articles for {len(users)} users...")
     # Format user interests
     user_info = "\n".join(
@@ -52,11 +49,8 @@ def summarize_articles(
     )
 
     # Format articles
-    article_lines = []
-    for title, link, published, feed_summary in items:
-        article_lines.append(
-            f"Title: {title}\nLink: {link}\nPublished: {published}\nFeed Summary: {feed_summary}\n"
-        )
+    title, link, published, feed_summary = items
+    article_line = f"Title: {title}\nLink: {link}\nPublished: {published}\nFeed Summary: {feed_summary}\n"
 
     # Instructions for format
     system_prompt = (
@@ -69,7 +63,7 @@ For the article:
 
     full_prompt = (
         f"Users and their interests:\n{user_info}\n\n"
-        f"Articles to summarize:\n{'\n'.join(article_lines)}"
+        f"Article to summarize:\n{article_line}\n\n"
     )
     
     llm = LLM.with_structured_output(SummarizationResult)
@@ -88,9 +82,3 @@ For the article:
     except Exception as e:
         raise ValueError(f"Model returned invalid structured output:\n{response}\n\nError: {e}")
 
-def summarize_article(title: str, link: str) -> str:
-    """
-    Backward-compatible single-article summary (returns only the summary text).
-    """
-    out = summarize_articles([(title, link, "", "")], [])
-    return out.get('summaries', [[]])[0] 
