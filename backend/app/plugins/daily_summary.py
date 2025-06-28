@@ -12,27 +12,6 @@ import json
 import requests
 import yaml
 
-from app.core import load_llm_config
-
-_llm_cfg = load_llm_config()
-MODEL_NAME = _llm_cfg.get(
-    "model_name", os.getenv("MODEL_NAME", "gpt-4.1")
-)
-TEMPERATURE = float(
-    _llm_cfg.get("model_temperature", os.getenv("MODEL_TEMPERATURE", 0.5))
-)
-MAX_TOKENS = int(
-    _llm_cfg.get("model_max_tokens", os.getenv("MODEL_MAX_TOKENS", 4096))
-)
-OPENAI_API_BASE = _llm_cfg.get("openai_api_base") or os.getenv("OPENAI_API_BASE")
-
-_llm_kwargs = {"model_name": MODEL_NAME, "temperature": TEMPERATURE}
-if MAX_TOKENS:
-    _llm_kwargs["max_tokens"] = MAX_TOKENS
-if OPENAI_API_BASE:
-    _llm_kwargs["openai_api_base"] = OPENAI_API_BASE
-
-LLM = ChatOpenAI(**_llm_kwargs)
 
 
 class DailySummaryPlugin(Plugin):
@@ -44,10 +23,34 @@ class DailySummaryPlugin(Plugin):
 
     # scheduling: run once per day at this HH:MM local time
     schedule_type:str = "daily"
-    schedule_time:str = "18:00"
+    schedule_time:str = "18:35"  # HH:MM in local time
     schedule_interval:str = None
 
     def run(self, session: Session) -> None:
+        
+        from app.core import load_llm_config
+
+        _llm_cfg = load_llm_config()
+        MODEL_NAME = _llm_cfg.get(
+            "model_name", os.getenv("MODEL_NAME", "gpt-4.1")
+        )
+        TEMPERATURE = float(
+            _llm_cfg.get("model_temperature", os.getenv("MODEL_TEMPERATURE", 0.5))
+        )
+        MAX_TOKENS = int(
+            _llm_cfg.get("model_max_tokens", os.getenv("MODEL_MAX_TOKENS", 4096))
+        )
+        OPENAI_API_BASE = _llm_cfg.get("openai_api_base") or os.getenv("OPENAI_API_BASE")
+
+        _llm_kwargs = {"model_name": MODEL_NAME, "temperature": TEMPERATURE}
+        if MAX_TOKENS:
+            _llm_kwargs["max_tokens"] = MAX_TOKENS
+        if OPENAI_API_BASE:
+            _llm_kwargs["openai_api_base"] = OPENAI_API_BASE
+
+        LLM = ChatOpenAI(**_llm_kwargs)
+        
+        
         # print(f"Running {self.name} plugin...")
         logging.info(f"Running {self.name} plugin at {datetime.utcnow()}, daily_summary")
         print((f"Running {self.name} plugin at {datetime.utcnow()}, daily_summary"))

@@ -2,6 +2,8 @@ import os
 import logging
 import asyncio
 import importlib
+import threading
+import time
 
 import feedparser
 import yaml
@@ -31,34 +33,6 @@ def load_users():
     finally:
         session.close()
 
-def article_matches_interest(article, interests):
-    """Return True if article's title or summary matches any interests"""
-    text = f"{article.title or ''} {article.summary or ''}".lower()
-    for item in interests:
-        if str(item).lower() in text:
-            return True
-    return False
-
-def dispatch_to_user_webhooks(article, summary):
-    users = load_users()
-    for user in users:
-        interests = user.interests or []
-        if interests and article_matches_interest(article, interests):
-            webhook = user.webhook
-            if webhook:
-                payload = {
-                    "id": article.link,
-                    "feed_name": article.feed_name,
-                    "title": article.title,
-                    "link": article.link,
-                    "published": article.published.isoformat() if article.published else None,
-                    "summary": summary,
-                    "matched_interests": interests
-                }
-                try:
-                    requests.post(webhook, json=payload, timeout=10)
-                except Exception as e:
-                    logging.warning(f"User webhook failed for {user.username}: {e}")
 
 CONFIG_PATH = os.path.join(BASE_DIR, "config", "feeds.yml")
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", 300))
@@ -165,6 +139,8 @@ def dispatch_pending(session: Session):
             art.status = ArticleStatus.sent
             session.commit()
             # dispatch_summary(art, art.ai_summary) # ! not necessary, if you want to use webhook, you can use the above code
+            print(f"Dispatched article {art.link} to {recs}")
+            logging.info(f"Dispatched article {art.link} to {recs}")
         else:
             session.rollback()
 
@@ -189,23 +165,40 @@ def _dispatch_job():
         dispatch_pending(session)
     finally:
         session.close()
+_poll_wake_event = threading.Event()
 
 async def poll_loop():
-    while True:
-        feeds, interval = load_config()
-        await asyncio.to_thread(_poll_job, feeds)
-        await asyncio.sleep(interval)
+    def _poll_thread_loop():
+        while True:
+            feeds, interval = load_config()
+            _poll_job(feeds)
+            _poll_wake_event.wait(timeout=interval)
+            _poll_wake_event.clear()
+
+    await asyncio.to_thread(_poll_thread_loop)
+
+_summarize_wake_event = threading.Event()
 
 async def summarize_loop():
-    while True:
-        await asyncio.to_thread(_summarize_job)
-        await asyncio.sleep(SUMMARIZE_INTERVAL)
+    def _summarize_thread_loop():
+        while True:
+            _summarize_job()
+            _summarize_wake_event.wait(timeout=SUMMARIZE_INTERVAL)
+            _summarize_wake_event.clear()
+
+    await asyncio.to_thread(_summarize_thread_loop)
+
+_dispatch_wake_event = threading.Event()
 
 async def dispatch_loop():
-    interval = int(os.getenv("DISPATCH_INTERVAL", 300))
-    while True:
-        await asyncio.to_thread(_dispatch_job)
-        await asyncio.sleep(interval)
+    def _dispatch_thread_loop():
+        interval = int(os.getenv("DISPATCH_INTERVAL", 300))
+        while True:
+            _dispatch_job()
+            _dispatch_wake_event.wait(timeout=interval)
+            _dispatch_wake_event.clear()
+
+    await asyncio.to_thread(_dispatch_thread_loop)
 
 async def _run_interval(plugin, interval: int):
     """Helper loop to run a plugin at a fixed interval (in seconds)."""
