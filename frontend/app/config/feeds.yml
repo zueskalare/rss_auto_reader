@@ -1,0 +1,4 @@
+feeds:
+- name: arxiv_cs
+  url: https://rss.arxiv.org/rss/cs
+interval: 300

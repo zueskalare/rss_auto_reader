@@ -112,13 +112,16 @@ python -c "from app.db import init_db; init_db()"
 ## Running Locally
 ```bash
 # Ensure venv activated and env vars set (including UI_PORT for Gradio UI)
-# Run with Uvicorn for ASGI server (auto-reload during development)
+# Launch the backend API server:
 uvicorn app.main:app --reload --host 127.0.0.1 --port ${API_PORT:-8000}
-# The Gradio Admin UI will be available at http://127.0.0.1:${UI_PORT:-7860}/
+# In a separate shell (with same env), launch the Gradio frontend:
+python -m app.ui_main
+# The API will be at http://127.0.0.1:${API_PORT:-8000}/api
+# The Gradio Admin UI will be at http://127.0.0.1:${UI_PORT:-7860}/
 ```
 
 ## Docker Setup
-The Docker container launches the service as an ASGI application (via Uvicorn), hosting both the web UI/API and the async polling loop. Build and run both the database and worker with Docker Compose:
+With Docker Compose the backend and frontend will each start in their own container. Build and run the database, API, and Gradio UI:
 ```bash
 docker-compose up --build
 ```
@@ -133,7 +136,7 @@ Or manually create the new database in the running container:
 docker-compose exec db psql -U $POSTGRES_USER -c "CREATE DATABASE $POSTGRES_DB;"
 ```
 
-The HTTP API will be exposed on the port configured by `API_PORT` (default 8000).
+The HTTP API will be exposed on `API_PORT` (default 8000) under `/api`, and the Gradio UI will be exposed on `UI_PORT` (default 7860).
 
 ## Gradio Admin UI
 
@@ -143,30 +146,21 @@ It starts automatically on application startup and listens on port configured by
 Browse to `http://localhost:${UI_PORT:-7860}/` to access the Gradio Admin UI.
 
 ## Project Structure
-```
+```text
 RSS_llm/
-├── app/
-│   ├── api/
-│   │   └── views.py          # HTTP API & web UI routes
-│   ├── config/
-│   │   ├── feeds.yml         # RSS feed list & polling interval
-│   │   └── users.yml         # User interests & webhooks
-│   ├── db.py
-│   ├── main.py
-│   ├── models/
-│   │   └── article.py
-│   ├── requirements.txt
-│   └── services/
-│       ├── dispatcher.py     # Webhook dispatcher for summarized articles
-   │       └── summarize.py      # Summarization logic
-   │   ├── plugins/            # Custom plugins (e.g. daily_summary)
-├── Dockerfile
+├── backend/                  # FastAPI backend service
+│   ├── Dockerfile
+│   └── app/                  # backend application code
+├── frontend/                 # Gradio frontend service
+│   ├── Dockerfile
+│   └── app/                  # frontend application code (UI layer)
 ├── docker-compose.yml
+├── requirements.txt
 ├── .env.example
 ├── .gitignore
 ├── .dockerignore
 └── README.md
-```
+``` 
 
 ## API Interface
 
