@@ -44,10 +44,14 @@ class DailySummaryPlugin(Plugin):
 
     # scheduling: run once per day at this HH:MM local time
     schedule_type:str = "daily"
-    schedule_time:str = "17:30"
+    schedule_time:str = "18:00"
     schedule_interval:str = None
 
     def run(self, session: Session) -> None:
+        # print(f"Running {self.name} plugin...")
+        logging.info(f"Running {self.name} plugin at {datetime.utcnow()}, daily_summary")
+        print((f"Running {self.name} plugin at {datetime.utcnow()}, daily_summary"))
+        
         since = datetime.utcnow() - timedelta(days=1)
         users = load_users()
         for user in users:

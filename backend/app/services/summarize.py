@@ -42,7 +42,7 @@ def summarize_article(
     class SummarizationResult(BaseModel):
         summaries: str = Field(default_factory=str, description="Concise summary of the article in Markdown format")
         recipients: List[str] = Field(default_factory=list, description="List of users interested in the article")
-    print(f"Summarizing {len(items)} articles for {len(users)} users...")
+    # print(f"Summarizing {len(items)} articles for {len(users)} users...")
     # Format user interests
     user_info = "\n".join(
         f"{u['username']}: \n\tUser's major or interest is areas about{', '.join(u['interests'])}" for u in users
