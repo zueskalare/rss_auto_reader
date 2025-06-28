@@ -54,7 +54,7 @@ def summarize_article(
 
     # Instructions for format
     system_prompt = (
-        '''You are an assistant that summarizes news articles and recommends them to users by matching each article to their topics of interest. If no one is interested in the article, make it a empty list.
+        '''You are an assistant that summarizes news articles and recommends them to users by matching each article to their topics of interest. If no one is interested in the article, Summarize the article, make recipients a empty list.
 For the article:
 - Write a concise **summary in Markdown format**.
 - **Include the article link**.
@@ -76,6 +76,8 @@ For the article:
     # print(f"LLM response: {response}")
 
     # Try parsing using the parser
+    if response.summaries is None or response.summaries.strip() == "":
+        raise ValueError("LLM did not return a valid summary. Please check the input data and model configuration.")
     try:
         
         return response.dict()  
