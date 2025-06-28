@@ -9,6 +9,8 @@ from app.db import SessionLocal
 from app.models.feed import Feed
 from app.models.article import Article, ArticleStatus
 from app.models.user import User
+from app.core import load_llm_config, save_llm_config
+import yaml
 
 # Pydantic schemas for request/response models
 from pydantic import BaseModel
@@ -31,6 +33,13 @@ class UserIn(BaseModel):
     username: str
     webhook: str
     interests: List[str]
+
+
+class LLMConfig(BaseModel):
+    model_name: str
+    model_temperature: float
+    model_max_tokens: int
+    openai_api_base: Optional[str] = None
 
 
 def get_db():
@@ -181,3 +190,28 @@ def trigger_dispatch(db: Session = Depends(get_db)):
 def health() -> dict:
     """Health check endpoint"""
     return {"status": "ok"}
+
+
+@router.get("/llm-config", response_model=LLMConfig)
+def get_llm_config():
+    """Retrieve the current LLM configuration from YAML config"""
+    cfg = load_llm_config()
+    return LLMConfig(
+        model_name=cfg.get("model_name", ""),
+        model_temperature=cfg.get("model_temperature", 0.0),
+        model_max_tokens=cfg.get("model_max_tokens", 0),
+        openai_api_base=cfg.get("openai_api_base", ""),
+    )
+
+
+@router.put("/llm-config", response_model=LLMConfig)
+def set_llm_config(config: LLMConfig):
+    """Update the LLM configuration YAML file"""
+    cfg = {
+        "model_name": config.model_name,
+        "model_temperature": config.model_temperature,
+        "model_max_tokens": config.model_max_tokens,
+        "openai_api_base": config.openai_api_base or "",
+    }
+    save_llm_config(cfg)
+    return config

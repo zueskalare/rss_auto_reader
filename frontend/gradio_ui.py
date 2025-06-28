@@ -41,6 +41,28 @@ def delete_user(username: str):
     resp.raise_for_status()
     return get_users_table()
 
+def get_llm_settings():
+    resp = requests.get(f"{API_BASE}/llm-config")
+    resp.raise_for_status()
+    cfg = resp.json()
+    return (
+        cfg.get("model_name", ""),
+        str(cfg.get("model_temperature", "")),
+        str(cfg.get("model_max_tokens", "")),
+        cfg.get("openai_api_base", ""),
+    )
+
+def save_llm_settings(model_name: str, temperature: str, max_tokens: str, openai_api_base: str):
+    payload = {
+        "model_name": model_name,
+        "model_temperature": float(temperature) if temperature else 0.0,
+        "model_max_tokens": int(max_tokens) if max_tokens else 0,
+        "openai_api_base": openai_api_base,
+    }
+    resp = requests.put(f"{API_BASE}/llm-config", json=payload)
+    resp.raise_for_status()
+    return get_llm_settings()
+
 def get_articles_table():
     resp = requests.get(f"{API_BASE}/articles")
     resp.raise_for_status()
@@ -111,6 +133,23 @@ def build_interface():
         del_user = gr.Textbox(label="Delete User by Username")
         del_user.change(delete_user, del_user, user_table)
         gr.Button("Refresh Users").click(get_users_table, None, user_table)
+
+        gr.Markdown("## LLM Settings")
+        llm_model = gr.Textbox(label="Model Name")
+        llm_temp = gr.Textbox(label="Temperature")
+        llm_max = gr.Textbox(label="Max Tokens")
+        llm_base = gr.Textbox(label="OpenAI API Base URL")
+        with gr.Row():
+            gr.Button("Save LLM Settings").click(
+                save_llm_settings,
+                [llm_model, llm_temp, llm_max, llm_base],
+                [llm_model, llm_temp, llm_max, llm_base],
+            )
+            gr.Button("Refresh LLM Settings").click(
+                get_llm_settings,
+                None,
+                [llm_model, llm_temp, llm_max, llm_base],
+            )
 
     return demo
 

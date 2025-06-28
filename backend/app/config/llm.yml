@@ -1,0 +1,5 @@
+# LLM configuration (model and parameters) for summarization and plugins
+model_name: qwen/qwen3-30b-a3b
+model_temperature: 0.5
+model_max_tokens: 4096
+openai_api_base: ""

@@ -5,19 +5,9 @@ from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage
 import logging
+import yaml
 
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1")
-TEMPERATURE = float(os.getenv("MODEL_TEMPERATURE", 0.5))
-MAX_TOKENS = int(os.getenv("MODEL_MAX_TOKENS", 4096))
-OPENAI_API_BASE = os.getenv("OPENAI_API_BASE") or None
 
-_llm_kwargs = {"model_name": MODEL_NAME, "temperature": TEMPERATURE}
-if MAX_TOKENS:
-    _llm_kwargs["max_tokens"] = MAX_TOKENS
-if OPENAI_API_BASE:
-    _llm_kwargs["openai_api_base"] = OPENAI_API_BASE
-
-LLM = ChatOpenAI(**_llm_kwargs)
 
 
 def summarize_articles(
@@ -27,6 +17,27 @@ def summarize_articles(
     Summarize multiple articles (title, link, published, feed_summary) and
     select recipients based on user interests. Returns structured results.
     """
+    from app.core import load_llm_config
+
+    _llm_cfg = load_llm_config()
+    MODEL_NAME = _llm_cfg.get(
+        "model_name", os.getenv("MODEL_NAME", "gpt-4.1")
+    )
+    TEMPERATURE = float(
+        _llm_cfg.get("model_temperature", os.getenv("MODEL_TEMPERATURE", 0.5))
+    )
+    MAX_TOKENS = int(
+        _llm_cfg.get("model_max_tokens", os.getenv("MODEL_MAX_TOKENS", 4096))
+    )
+    OPENAI_API_BASE = _llm_cfg.get("openai_api_base") or os.getenv("OPENAI_API_BASE")
+
+    _llm_kwargs = {"model_name": MODEL_NAME, "temperature": TEMPERATURE}
+    if MAX_TOKENS:
+        _llm_kwargs["max_tokens"] = MAX_TOKENS
+    if OPENAI_API_BASE:
+        _llm_kwargs["openai_api_base"] = OPENAI_API_BASE
+
+    LLM = ChatOpenAI(**_llm_kwargs)
 
     class SummarizationResult(BaseModel):
         summaries: List[str] = Field(default_factory=list, description="Summaries of articles")

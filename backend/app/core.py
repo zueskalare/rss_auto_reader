@@ -61,7 +61,11 @@ def dispatch_to_user_webhooks(article, summary):
 
 CONFIG_PATH = os.path.join(BASE_DIR, "config", "feeds.yml")
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", 300))
+
 SUMMARIZE_INTERVAL = int(os.getenv("SUMMARIZE_INTERVAL", POLL_INTERVAL))
+
+# LLM configuration file path for model parameters
+LLM_CONFIG_PATH = os.path.join(BASE_DIR, "config", "llm.yml")
 
 def load_config():
     """Loads polling interval and feed list from DB"""
@@ -74,6 +78,19 @@ def load_config():
     finally:
         session.close()
     return feeds, int(interval)
+
+def load_llm_config() -> dict:
+    """Load LLM model parameters from YAML config."""
+    try:
+        with open(LLM_CONFIG_PATH) as f:
+            return yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        return {}
+
+def save_llm_config(cfg: dict) -> None:
+    """Save LLM model parameters to YAML config."""
+    with open(LLM_CONFIG_PATH, "w") as f:
+        yaml.safe_dump(cfg, f)
 
 def fetch_and_store(session: Session, feed: dict):
     parsed = feedparser.parse(feed["url"])

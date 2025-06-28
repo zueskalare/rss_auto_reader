@@ -10,12 +10,21 @@ from app.models.article import Article, ArticleStatus
 from app.core import load_users
 import json
 import requests
+import yaml
 
-# Default LLM settings for daily summary
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1")
-TEMPERATURE = float(os.getenv("MODEL_TEMPERATURE", 0.5))
-MAX_TOKENS = int(os.getenv("MODEL_MAX_TOKENS", 4096))
-OPENAI_API_BASE = os.getenv("OPENAI_API_BASE") or None
+from app.core import load_llm_config
+
+_llm_cfg = load_llm_config()
+MODEL_NAME = _llm_cfg.get(
+    "model_name", os.getenv("MODEL_NAME", "gpt-4.1")
+)
+TEMPERATURE = float(
+    _llm_cfg.get("model_temperature", os.getenv("MODEL_TEMPERATURE", 0.5))
+)
+MAX_TOKENS = int(
+    _llm_cfg.get("model_max_tokens", os.getenv("MODEL_MAX_TOKENS", 4096))
+)
+OPENAI_API_BASE = _llm_cfg.get("openai_api_base") or os.getenv("OPENAI_API_BASE")
 
 _llm_kwargs = {"model_name": MODEL_NAME, "temperature": TEMPERATURE}
 if MAX_TOKENS:

@@ -69,6 +69,15 @@ users:
       - "python"
 ```
 
+### llm.yml
+Configure the default LLM model and parameters used for summarization and daily plugins:
+```yaml
+model_name: gpt-4.1
+model_temperature: 0.5
+model_max_tokens: 4096
+openai_api_base: ""
+```
+
 ### Environment Variables
 Copy `.env.example` to `.env` and update the values, or export these variables manually.
 
@@ -150,6 +159,9 @@ The Gradio-based admin interface is available for viewing articles, managing fee
 It starts automatically on application startup and listens on port configured by `UI_PORT` (default 7860).
 
 Browse to `http://localhost:${UI_PORT:-7860}/` to access the Gradio Admin UI.
+
+### LLM Settings
+Use the Admin UI to view and modify the LLM configuration for summarization (model name, temperature, max tokens, and OpenAI API base URL).  These settings apply to both on-demand summaries and the daily summary plugin.
 
 ## Project Structure
 ```text
