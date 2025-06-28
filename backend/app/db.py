@@ -35,3 +35,4 @@ def init_db():
             conn.execute(f'CREATE DATABASE "{db_name}"')
         default_engine.dispose()
         Base.metadata.create_all(bind=engine)
+
