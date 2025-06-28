@@ -68,7 +68,7 @@ class DailySummaryPlugin(Plugin):
                 # Send highlight to this user's webhook
                 webhook = getattr(user, 'webhook', None)
                 if webhook:
-                    payload = {"plugin": self.name, "highlight": highlight}
+                    payload = {"title": self.name, "ai_summary": highlight}
                     try:
                         requests.post(webhook, json=payload, timeout=10)
                     except Exception as e:
