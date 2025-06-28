@@ -24,7 +24,8 @@
 - **Summarization**: Generates concise summaries using OpenAI.
 - **Webhook Dispatch**: Posts summarized data to a configurable HTTP endpoint.
 - **ASGI & Web UI**: Serves the Flask-based API and web interface via Starlette and Uvicorn.
-- **Async Polling Loop**: Executes the polling and summarization logic asynchronously in the background.
+- **Async Fetch Loop**: Executes the polling logic to fetch new feed entries asynchronously.
+- **Async Summarization Loop**: Summarizes newly fetched articles asynchronously in the background.
 - **Dockerized**: Ready to run via Docker Compose for easy deployment.
 
 ## Prerequisites
@@ -90,6 +91,8 @@ POLL_INTERVAL=300
 DISPATCH_INTERVAL=3600
 # Plugin interval in seconds (how often to run custom plugins; default: 86400)
 PLUGIN_INTERVAL=86400
+# Summarization interval in seconds (how often to summarize fetched articles; default: same as POLL_INTERVAL)
+SUMMARIZE_INTERVAL=300
 # HTTP API port
 API_PORT=8000
 

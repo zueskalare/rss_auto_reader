@@ -69,6 +69,8 @@ BASE_DIR = os.path.dirname(__file__)
 
 CONFIG_PATH = os.path.join(BASE_DIR, "config", "feeds.yml")
 POLL_INTERVAL = int(os.getenv("POLL_INTERVAL", 300))
+# Interval for summarizing fetched articles (defaults to POLL_INTERVAL)
+SUMMARIZE_INTERVAL = int(os.getenv("SUMMARIZE_INTERVAL", POLL_INTERVAL))
 
 def load_config():
     """Loads polling interval from YAML and feeds from database"""
@@ -199,18 +201,28 @@ def _poll_job(feeds):
         for feed in feeds:
             logging.info(f"Fetching feed: {feed['name']} ({feed['url']})")
             fetch_and_store(session, feed)
-        summarize_and_push(session)
     except Exception as e:
         logging.error(f"Error in poll job: {e}")
     finally:
         session.close()
 
+        # note: summarization is handled separately in summarize_loop
 def _dispatch_job():
     session = SessionLocal()
     try:
         dispatch_pending(session)
     except Exception as e:
         logging.error(f"Error in dispatch job: {e}")
+    finally:
+        session.close()
+
+# helper: summarize fetched articles separately
+def _summarize_job():
+    session = SessionLocal()
+    try:
+        summarize_and_push(session)
+    except Exception as e:
+        logging.error(f"Error in summarize job: {e}")
     finally:
         session.close()
 
@@ -255,9 +267,8 @@ def _initial_fetch() -> None:
         for feed in feeds:
             logging.info(f"Initial fetch: {feed['name']} ({feed['url']})")
             fetch_and_store(session, feed)
-        summarize_and_push(session)
     except Exception as e:
-        logging.error(f"Error in initial fetch/summarize: {e}")
+        logging.error(f"Error in initial fetch: {e}")
     finally:
         session.close()
 
@@ -283,6 +294,15 @@ async def dispatch_loop() -> None:
             logging.error(f"Error in dispatch loop: {e}")
         await asyncio.sleep(dispatch_interval)
 
+async def summarize_loop() -> None:
+    """Background task: summarize fetched articles asynchronously."""
+    while True:
+        try:
+            await asyncio.to_thread(_summarize_job)
+        except Exception as e:
+            logging.error(f"Error in summarize loop: {e}")
+        await asyncio.sleep(SUMMARIZE_INTERVAL)
+
 async def plugin_loop() -> None:
     """Background task: run custom scheduled plugins at a configured interval."""
     plugin_interval = int(os.getenv("PLUGIN_INTERVAL", 86400))
@@ -306,11 +326,12 @@ async def on_startup() -> None:
     # seed initial feed and user configurations
     await asyncio.to_thread(_initial_seed)
 
-    # perform initial fetch and summarization
+    # perform initial fetch of articles
     await asyncio.to_thread(_initial_fetch)
 
-    # launch background tasks: polling/summarization, dispatch, and plugins
+    # launch background tasks: fetch, summarization, dispatch, and plugins
     asyncio.create_task(poll_loop())
+    asyncio.create_task(summarize_loop())
     asyncio.create_task(dispatch_loop())
     asyncio.create_task(plugin_loop())
 
