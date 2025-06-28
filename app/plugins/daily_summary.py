@@ -11,7 +11,7 @@ from app.models.article import Article, ArticleStatus
 # Default LLM settings for daily summary
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1")
 TEMPERATURE = float(os.getenv("MODEL_TEMPERATURE", 0.5))
-MAX_TOKENS = int(os.getenv("MODEL_MAX_TOKENS", 150))
+MAX_TOKENS = int(os.getenv("MODEL_MAX_TOKENS", 4096))
 OPENAI_API_BASE = os.getenv("OPENAI_API_BASE") or None
 
 _llm_kwargs = {"model_name": MODEL_NAME, "temperature": TEMPERATURE}

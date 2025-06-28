@@ -193,64 +193,38 @@ def dispatch_pending(session: Session):
         else:
             session.rollback()
 
+def _poll_job(feeds):
+    session = SessionLocal()
+    try:
+        for feed in feeds:
+            logging.info(f"Fetching feed: {feed['name']} ({feed['url']})")
+            fetch_and_store(session, feed)
+        summarize_and_push(session)
+    except Exception as e:
+        logging.error(f"Error in poll job: {e}")
+    finally:
+        session.close()
 
-async def poll_loop() -> None:
-    """Background task: poll feeds and process articles asynchronously."""
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
-    while True:
-        session = SessionLocal()
-        try:
-            feeds, interval = load_config()
-            for feed in feeds:
-                logging.info(f"Fetching feed: {feed['name']} ({feed['url']})")
-                fetch_and_store(session, feed)
-            summarize_and_push(session)
-        except Exception as e:
-            logging.error(f"Error in poll loop: {e}")
-        finally:
-            session.close()
-        await asyncio.sleep(interval)
+def _dispatch_job():
+    session = SessionLocal()
+    try:
+        dispatch_pending(session)
+    except Exception as e:
+        logging.error(f"Error in dispatch job: {e}")
+    finally:
+        session.close()
 
+def _run_plugin(plugin):
+    session = SessionLocal()
+    try:
+        logging.info(f"Running plugin: {plugin.name}")
+        plugin.run(session)
+    except Exception as e:
+        logging.error(f"Error in plugin {plugin.name}: {e}")
+    finally:
+        session.close()
 
-async def dispatch_loop() -> None:
-    """Background task: retry and send dispatches at a configured interval."""
-    dispatch_interval = int(os.getenv("DISPATCH_INTERVAL", 3600))
-    while True:
-        session = SessionLocal()
-        try:
-            dispatch_pending(session)
-        except Exception as e:
-            logging.error(f"Error in dispatch loop: {e}")
-        finally:
-            session.close()
-        await asyncio.sleep(dispatch_interval)
-
-async def plugin_loop() -> None:
-    """Background task: run custom scheduled plugins at a configured interval."""
-    plugin_interval = int(os.getenv("PLUGIN_INTERVAL", 86400))
-    plugins_path = os.path.join(BASE_DIR, "plugins")
-    while True:
-        for _, name, _ in pkgutil.iter_modules([plugins_path]):
-            try:
-                module = importlib.import_module(f"{__package__}.plugins.{name}")
-                plugin = getattr(module, "plugin", None)
-                if plugin:
-                    session = SessionLocal()
-                    try:
-                        logging.info(f"Running plugin: {plugin.name}")
-                        plugin.run(session)
-                    except Exception as e:
-                        logging.error(f"Error in plugin {plugin.name}: {e}")
-                    finally:
-                        session.close()
-            except Exception as e:
-                logging.error(f"Error loading plugin module {name}: {e}")
-        await asyncio.sleep(plugin_interval)
-
-@app.on_event("startup")
-async def on_startup() -> None:
-    # initialize database tables and seed initial feed/user configs
-    init_db()
+def _initial_seed() -> None:
     session = SessionLocal()
     try:
         with open(CONFIG_PATH, "r") as f:
@@ -273,6 +247,8 @@ async def on_startup() -> None:
         session.commit()
     finally:
         session.close()
+
+def _initial_fetch() -> None:
     session = SessionLocal()
     try:
         feeds, _ = load_config()
@@ -285,10 +261,59 @@ async def on_startup() -> None:
     finally:
         session.close()
 
-    # launch background tasks: polling/summarization and dispatch loops
+async def poll_loop() -> None:
+    """Background task: poll feeds and process articles asynchronously."""
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
+    while True:
+        feeds, interval = load_config()
+        try:
+            await asyncio.to_thread(_poll_job, feeds)
+        except Exception as e:
+            logging.error(f"Error in poll loop: {e}")
+        await asyncio.sleep(interval)
+
+
+async def dispatch_loop() -> None:
+    """Background task: retry and send dispatches at a configured interval."""
+    dispatch_interval = int(os.getenv("DISPATCH_INTERVAL", 3600))
+    while True:
+        try:
+            await asyncio.to_thread(_dispatch_job)
+        except Exception as e:
+            logging.error(f"Error in dispatch loop: {e}")
+        await asyncio.sleep(dispatch_interval)
+
+async def plugin_loop() -> None:
+    """Background task: run custom scheduled plugins at a configured interval."""
+    plugin_interval = int(os.getenv("PLUGIN_INTERVAL", 86400))
+    plugins_path = os.path.join(BASE_DIR, "plugins")
+    while True:
+        for _, name, _ in pkgutil.iter_modules([plugins_path]):
+            try:
+                module = importlib.import_module(f"{__package__}.plugins.{name}")
+                plugin = getattr(module, "plugin", None)
+                if plugin:
+                    await asyncio.to_thread(_run_plugin, plugin)
+            except Exception as e:
+                logging.error(f"Error loading plugin module {name}: {e}")
+        await asyncio.sleep(plugin_interval)
+
+@app.on_event("startup")
+async def on_startup() -> None:
+    # initialize database tables
+    await asyncio.to_thread(init_db)
+
+    # seed initial feed and user configurations
+    await asyncio.to_thread(_initial_seed)
+
+    # perform initial fetch and summarization
+    await asyncio.to_thread(_initial_fetch)
+
+    # launch background tasks: polling/summarization, dispatch, and plugins
     asyncio.create_task(poll_loop())
     asyncio.create_task(dispatch_loop())
     asyncio.create_task(plugin_loop())
+
     # launch Gradio admin UI in background
     ui_port = int(os.getenv("UI_PORT", 7860))
     gr_interface.launch(server_name="0.0.0.0", server_port=ui_port)
