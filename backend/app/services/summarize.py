@@ -69,7 +69,7 @@ For the article:
 
     full_prompt = (
         f"Users and their interests:\n{user_info}\n\n"
-        f"Articles to summarize:\n{''.join(article_lines)}"
+        f"Articles to summarize:\n{'\n'.join(article_lines)}"
     )
     
     llm = LLM.with_structured_output(SummarizationResult)
