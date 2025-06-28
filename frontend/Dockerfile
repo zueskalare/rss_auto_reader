@@ -15,4 +15,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Launch the Gradio frontend
-CMD ["python", "-m", "app.ui_main"]
+CMD ["python", "frontend/ui_main.py"]

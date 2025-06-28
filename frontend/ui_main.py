@@ -1,6 +1,6 @@
 import os
 
-from app.gradio_ui import gr_interface
+from gradio_ui import gr_interface
 
 def main():
     """Launch the Gradio admin UI"""

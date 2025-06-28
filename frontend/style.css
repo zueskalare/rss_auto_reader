@@ -1,0 +1,32 @@
+/* Custom Gradio Admin UI Styles */
+
+/* Page header styles */
+h1 {
+    color: #333;
+    font-family: Arial, sans-serif;
+}
+h2 {
+    color: #444;
+    font-family: Arial, sans-serif;
+}
+
+/* Dataframe table styles */
+.gradio-dataframe table {
+    border-collapse: collapse;
+    width: 100%;
+}
+.gradio-dataframe th,
+.gradio-dataframe td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+.gradio-dataframe th {
+    background-color: #f2f2f2;
+    text-align: left;
+}
+
+/* Button styles */
+.gradio-button {
+    background-color: #4CAF50;
+    color: white;
+}

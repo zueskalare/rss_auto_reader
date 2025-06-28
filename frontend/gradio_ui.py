@@ -1,10 +1,10 @@
 import asyncio
 import gradio as gr
 from sqlalchemy.orm import Session
-from .db import SessionLocal
-from .models.feed import Feed
-from .models.user import User
-from .models.article import Article
+from app.db import SessionLocal
+from app.models.feed import Feed
+from app.models.user import User
+from app.models.article import Article
 
 def get_feeds_table():
     session: Session = SessionLocal()
@@ -117,7 +117,7 @@ async def manual_dispatch():
     return get_articles_table()
 
 def build_interface():
-    with gr.Blocks() as demo:
+    with gr.Blocks(css="frontend/style.css") as demo:
         gr.Markdown("# Admin UI: Articles, Feeds & Webhooks")
 
         gr.Markdown("## Articles")

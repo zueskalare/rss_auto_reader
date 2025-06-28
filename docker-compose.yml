@@ -44,7 +44,7 @@ services:
       - "${UI_PORT:-7860}:${UI_PORT:-7860}"
     volumes:
       - .:/app
-    command: python -m app.ui_main
+    command: python frontend/ui_main.py
 
 volumes:
   db_data:
