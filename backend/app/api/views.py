@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.db import SessionLocal
 from app.models.feed import Feed
 from app.models.article import Article, ArticleStatus
+from app.models.user import User
 
 # Pydantic schemas for request/response models
 from pydantic import BaseModel
@@ -24,6 +25,12 @@ class FeedUpdate(BaseModel):
 
 class FetchIn(BaseModel):
     feeds: Optional[List[str]] = None
+
+
+class UserIn(BaseModel):
+    username: str
+    webhook: str
+    interests: List[str]
 
 
 def get_db():
@@ -74,6 +81,34 @@ def delete_feed(name: str, db: Session = Depends(get_db)):
     db.commit()
     if not deleted:
         raise HTTPException(status_code=404, detail=f"Feed '{name}' not found")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/users", response_model=List[UserIn])
+def list_users(db: Session = Depends(get_db)):
+    """List all registered users"""
+    users = db.query(User).all()
+    return [{"username": u.username, "webhook": u.webhook, "interests": u.interests} for u in users]
+
+
+@router.post("/users", response_model=UserIn, status_code=status.HTTP_201_CREATED)
+def create_user(user: UserIn, db: Session = Depends(get_db)):
+    """Register a new user webhook and interests"""
+    if db.query(User).filter_by(username=user.username).first():
+        raise HTTPException(status_code=400, detail=f"User '{user.username}' already exists")
+    new = User(username=user.username, webhook=user.webhook, interests=user.interests)
+    db.add(new)
+    db.commit()
+    return {"username": new.username, "webhook": new.webhook, "interests": new.interests}
+
+
+@router.delete("/users/{username}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(username: str, db: Session = Depends(get_db)):
+    """Delete a user by username"""
+    deleted = db.query(User).filter_by(username=username).delete()
+    db.commit()
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"User '{username}' not found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -130,6 +165,15 @@ def trigger_fetch(fetch_in: Optional[FetchIn] = None, db: Session = Depends(get_
     for f in selected:
         fetch_and_store(db, {"name": f.name, "url": f.url})
     summarize_and_push(db)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/dispatch", status_code=status.HTTP_204_NO_CONTENT)
+def trigger_dispatch(db: Session = Depends(get_db)):
+    """Trigger immediate dispatch of any pending summarized articles"""
+    from app.main import dispatch_pending
+
+    dispatch_pending(db)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
