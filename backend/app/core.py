@@ -104,9 +104,11 @@ def summarize_and_push(session: Session):
                    a.summary or "") for a in batch]
         try:
             results = summarize_articles(inputs, user_data)
-            for art, res in zip(batch, results):
-                art.ai_summary = res.get("summary", "")
-                art.recipients = json.dumps(res.get("recipients", []))
+            summaries = results.get("summaries", [])
+            recepients = results.get("recipients", [])
+            for art, summary, recs in zip(batch, summaries, recepients):
+                art.ai_summary = summary
+                art.recipients = json.dumps(recs)
                 art.status = ArticleStatus.summarized
                 art.sent = False
                 session.commit()

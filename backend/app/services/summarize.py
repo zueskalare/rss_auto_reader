@@ -29,8 +29,10 @@ def summarize_articles(
     """
 
     class SummarizationResult(BaseModel):
-        summary: str = Field(..., description="Concise summary of the article")
-        recipients: List[str] = Field(default_factory=list, description="Usernames to send the summary to")
+        summaries: List[str] = Field(default_factory=list, description="Summaries of articles")
+        recipients: List[List[str]] = Field(
+            default_factory=list, description="List of users interested in each article"
+        )
 
     print(f"Summarizing {len(items)} articles for {len(users)} users...")
     # Format user interests
@@ -47,7 +49,7 @@ def summarize_articles(
 
     # Instructions for format
     system_prompt = (
-        '''You are an assistant that summarizes news articles and recommends them to users by matching each article to their topics of interest. If no one is interested in the article, make it none.
+        '''You are an assistant that summarizes news articles and recommends them to users by matching each article to their topics of interest. If no one is interested in the article, make it a empty list.
 For the article:
 - Write a concise **summary in Markdown format**.
 - **Include the article link**.
@@ -71,7 +73,7 @@ For the article:
     # Try parsing using the parser
     try:
         
-        return [response.dict()]  # Because it's a single result
+        return response.dict()  
     except Exception as e:
         raise ValueError(f"Model returned invalid structured output:\n{response}\n\nError: {e}")
 
@@ -80,4 +82,4 @@ def summarize_article(title: str, link: str) -> str:
     Backward-compatible single-article summary (returns only the summary text).
     """
     out = summarize_articles([(title, link, "", "")], [])
-    return out[0].get('summary', '')
+    return out.get('summaries', [[]])[0] 
