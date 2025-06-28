@@ -96,8 +96,9 @@ def summarize_and_push(session: Session):
     new_articles = session.query(Article).filter_by(status=ArticleStatus.new).all()
     users = load_users()
     user_data = [{"username": u.username, "interests": u.interests or []} for u in users]
-    for i in range(0, len(new_articles), 10):
-        batch = new_articles[i:i+10]
+    offset = 1
+    for i in range(0, len(new_articles), offset):
+        batch = new_articles[i:i+offset]
         inputs = [(a.title, a.link,
                    a.published.isoformat() if a.published else "",
                    a.summary or "") for a in batch]

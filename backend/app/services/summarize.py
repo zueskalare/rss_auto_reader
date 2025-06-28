@@ -32,7 +32,7 @@ def summarize_articles(
         summary: str = Field(..., description="Concise summary of the article")
         recipients: List[str] = Field(default_factory=list, description="Usernames to send the summary to")
 
-
+    print(f"Summarizing {len(items)} articles for {len(users)} users...")
     # Format user interests
     user_info = "\n".join(
         f"- {u['username']}: {', '.join(u['interests'])}" for u in users
@@ -47,7 +47,7 @@ def summarize_articles(
 
     # Instructions for format
     system_prompt = (
-        '''You are an assistant that summarizes news articles and recommends them to users by matching each article to their topics of interest.
+        '''You are an assistant that summarizes news articles and recommends them to users by matching each article to their topics of interest. If no one is interested in the article, make it none.
 For the article:
 - Write a concise **summary in Markdown format**.
 - **Include the article link**.
