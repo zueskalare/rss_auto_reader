@@ -177,7 +177,7 @@ async def summarize_loop():
         await asyncio.sleep(SUMMARIZE_INTERVAL)
 
 async def dispatch_loop():
-    interval = int(os.getenv("DISPATCH_INTERVAL", 3600))
+    interval = int(os.getenv("DISPATCH_INTERVAL", 300))
     while True:
         await asyncio.to_thread(_dispatch_job)
         await asyncio.sleep(interval)

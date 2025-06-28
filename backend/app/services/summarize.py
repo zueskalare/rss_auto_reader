@@ -37,7 +37,7 @@ def summarize_articles(
     print(f"Summarizing {len(items)} articles for {len(users)} users...")
     # Format user interests
     user_info = "\n".join(
-        f"- {u['username']}: {', '.join(u['interests'])}" for u in users
+        f"{u['username']}: \n\tUser's major or interest is areas about{', '.join(u['interests'])}" for u in users
     )
 
     # Format articles
