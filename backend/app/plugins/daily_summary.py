@@ -44,7 +44,7 @@ class DailySummaryPlugin(Plugin):
 
     # scheduling: run once per day at this HH:MM local time
     schedule_type:str = "daily"
-    schedule_time:str = "16:00"
+    schedule_time:str = "17:00"
     schedule_interval:str = None
 
     def run(self, session: Session) -> None:
