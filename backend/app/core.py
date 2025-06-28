@@ -110,10 +110,8 @@ def summarize_and_push(session: Session):
                 art.sent = False
                 session.commit()
         except Exception:
+            # If summarization fails, leave articles as 'new' so they'll be retried later
             session.rollback()
-            for art in batch:
-                art.status = ArticleStatus.error
-                session.commit()
 
 def dispatch_pending(session: Session):
     unsent = session.query(Article).filter_by(status=ArticleStatus.summarized, sent=False).all()
@@ -136,6 +134,7 @@ def dispatch_pending(session: Session):
                 success = False
         if success:
             art.sent = True
+            art.status = ArticleStatus.sent
             session.commit()
             dispatch_summary(art, art.ai_summary)
         else:

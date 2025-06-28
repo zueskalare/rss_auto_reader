@@ -18,7 +18,7 @@ from app.db import Base
 class ArticleStatus(enum.Enum):
     new = "new"
     summarized = "summarized"
-    error = "error"
+    sent = "sent"
 
 
 class Article(Base):

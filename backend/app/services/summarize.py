@@ -48,11 +48,10 @@ def summarize_articles(
     # Instructions for format
     system_prompt = (
         '''You are an assistant that summarizes news articles and recommends them to users by matching each article to their topics of interest.
-
-For each article:
+For the article:
 - Write a concise **summary in Markdown format**.
 - **Include the article link**.
-- Highlight key parts of the summary that match a user's interests using **bold text**.'''
+- Highlight key parts of the summary that match a user's interests using **bold text**. that you think why you recommend this article to the user.'''
     )
 
     full_prompt = (

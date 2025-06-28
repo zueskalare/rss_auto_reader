@@ -7,6 +7,9 @@ from langchain_core.messages import SystemMessage, HumanMessage
 
 from .base import Plugin
 from app.models.article import Article, ArticleStatus
+from app.core import load_users
+import json
+import requests
 
 # Default LLM settings for daily summary
 MODEL_NAME = os.getenv("MODEL_NAME", "gpt-4.1")
@@ -32,30 +35,46 @@ class DailySummaryPlugin(Plugin):
 
     def run(self, session: Session) -> None:
         since = datetime.utcnow() - timedelta(days=1)
-        arts = (
-            session.query(Article)
-            .filter(Article.status == ArticleStatus.summarized)
-            .filter(Article.updated_at >= since)
-            .all()
-        )
-        if not arts:
-            return
+        users = load_users()
+        for user in users:
+            # Query articles delivered to this user in the last day
+            arts = (
+                session.query(Article)
+                .filter(Article.sent == True)
+                .filter(Article.updated_at >= since)
+                .all()
+            )
+            # Filter by recipients for this user
+            user_arts = [a for a in arts if user.username in json.loads(a.recipients or "[]")]
+            if not user_arts:
+                continue
 
-        # Build prompt with titles and AI summaries
-        lines = ["Daily summary of today's articles:"]
-        for a in arts:
-            lines.append(f"- {a.title}: {a.link}\n  {a.ai_summary}")
+            # Build personalized daily summary
+            lines = [f"Daily summary of articles for {user.username}:"]
+            for a in user_arts:
+                lines.append(f"- {a.title}: {a.link}\n  {a.ai_summary}")
 
-        messages = [
-            SystemMessage(content="You are an assistant that composes a daily highlight of articles."),
-            HumanMessage(content="\n".join(lines)),
-        ]
-        try:
-            resp = LLM(messages)
-            highlight = resp.content.strip()
-            logging.info(f"[DailySummary] {highlight}")
-        except Exception as e:
-            logging.error(f"Error in daily summary plugin: {e}")
+            messages = [
+                SystemMessage(content='''You are an assistant that summarizes news articles and recommends them to users by matching each article to their topics of interest.
+- Write a concise **summary in Markdown format** for the articles.
+- **Include the article link**.
+- Highlight key parts of the summary that match a user's interests using **bold text**.'''),
+                HumanMessage(content="\n".join(lines)),
+            ]
+            try:
+                resp = LLM(messages)
+                highlight = resp.content.strip()
+                logging.info(f"[DailySummary:{user.username}] {highlight}")
+                # Send highlight to this user's webhook
+                webhook = getattr(user, 'webhook', None)
+                if webhook:
+                    payload = {"plugin": self.name, "highlight": highlight}
+                    try:
+                        requests.post(webhook, json=payload, timeout=10)
+                    except Exception as e:
+                        logging.warning(f"[DailySummary] webhook failed for {user.username}: {e}")
+            except Exception as e:
+                logging.error(f"Error in daily summary plugin for {user.username}: {e}")
 
 
 plugin = DailySummaryPlugin()
