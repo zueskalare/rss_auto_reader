@@ -33,6 +33,11 @@ class DailySummaryPlugin(Plugin):
     def name(self) -> str:
         return "daily_summary"
 
+    # scheduling: run once per day at this HH:MM local time
+    schedule_type = "daily"
+    schedule_time = "16:00"
+    schedule_interval = None
+
     def run(self, session: Session) -> None:
         since = datetime.utcnow() - timedelta(days=1)
         users = load_users()

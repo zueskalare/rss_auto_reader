@@ -1,13 +1,12 @@
 import os
 import logging
 import asyncio
-import pkgutil
 import importlib
 
 import feedparser
 import yaml
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 
 from app.db import SessionLocal
@@ -182,16 +181,48 @@ async def dispatch_loop():
         await asyncio.to_thread(_dispatch_job)
         await asyncio.sleep(interval)
 
-async def plugin_loop():
-    interval = int(os.getenv("PLUGIN_INTERVAL", 86400))
-    path = os.path.join(BASE_DIR, "plugins")
+async def _run_interval(plugin, interval: int):
+    """Helper loop to run a plugin at a fixed interval (in seconds)."""
     while True:
-        for _, name, _ in pkgutil.iter_modules([path]):
+        try:
+            await asyncio.to_thread(plugin.run, SessionLocal())
+        except Exception as e:
+            logging.error(f"Error in plugin '{plugin.name}' interval run: {e}")
+        await asyncio.sleep(interval)
+
+async def _run_daily(plugin, time_str: str):
+    """Helper loop to run a plugin once a day at the specified HH:MM local time."""
+    hour, minute = map(int, time_str.split(':'))
+    while True:
+        now = datetime.now()
+        next_run = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        if now >= next_run:
+            next_run += timedelta(days=1)
+        await asyncio.sleep((next_run - now).total_seconds())
+        try:
+            await asyncio.to_thread(plugin.run, SessionLocal())
+        except Exception as e:
+            logging.error(f"Error in plugin '{plugin.name}' daily run: {e}")
+
+async def plugin_loop():
+    """Schedule all plugins declared in app.plugins.__all__ according to their schedule."""
+    from app.plugins import __all__ as plugin_names
+
+    for name in plugin_names:
+        try:
             module = importlib.import_module(f"app.plugins.{name}")
             plugin = getattr(module, "plugin", None)
-            if plugin:
-                await asyncio.to_thread(plugin.run, SessionLocal())
-        await asyncio.sleep(interval)
+            if not plugin:
+                continue
+            ptype = getattr(plugin, "schedule_type", "interval")
+            if ptype == "daily":
+                time_str = plugin.schedule_time or "00:00"
+                asyncio.create_task(_run_daily(plugin, time_str))
+            else:
+                interval = plugin.schedule_interval or int(os.getenv("PLUGIN_INTERVAL", 86400))
+                asyncio.create_task(_run_interval(plugin, interval))
+        except Exception as e:
+            logging.error(f"Failed to schedule plugin '{name}': {e}")
 
 def _initial_seed() -> None:
     session = SessionLocal()

@@ -90,6 +90,12 @@ POLL_INTERVAL=300
 DISPATCH_INTERVAL=3600
 # Plugin interval in seconds (how often to run custom plugins; default: 86400)
 PLUGIN_INTERVAL=86400
+# Plugin scheduling: per-plugin override of running method
+# Plugins are listed in `backend/app/plugins/__init__.py` via the `__all__` list.
+# Each plugin sets scheduling fields on its Plugin subclass:
+# - `schedule_type`: "interval" or "daily".
+# - `schedule_interval`: seconds between runs for interval mode (fallback to PLUGIN_INTERVAL if None).
+# - `schedule_time`: "HH:MM" local time for daily mode.
 # Summarization interval in seconds (how often to summarize fetched articles; default: same as POLL_INTERVAL)
 SUMMARIZE_INTERVAL=300
 # HTTP API port
@@ -148,9 +154,10 @@ Browse to `http://localhost:${UI_PORT:-7860}/` to access the Gradio Admin UI.
 ## Project Structure
 ```text
 RSS_llm/
-├── backend/                  # FastAPI backend service
+├── backend/                  # FastAPI backend service and scheduled plugins
 │   ├── Dockerfile
 │   └── app/                  # backend application code
+│       └── plugins/          # custom scheduled plugins (see below)
 ├── frontend/                 # Gradio frontend service
 │   ├── Dockerfile
 │   └── app/                  # frontend application code (UI layer)
@@ -160,7 +167,49 @@ RSS_llm/
 ├── .gitignore
 ├── .dockerignore
 └── README.md
-``` 
+```
+
+## Plugins
+
+Custom scheduled plugins live under `backend/app/plugins`.  Each plugin must expose a `plugin` instance of a `Plugin` subclass (from `base.py`) and be listed in the `__all__` array in `backend/app/plugins/__init__.py`:
+
+```python
+from .daily_summary import plugin as daily_summary
+
+__all__ = [
+    "daily_summary",
+]
+```
+
+The `Plugin` base model provides built-in scheduling fields:
+
+| Field              | Type    | Description                                                    |
+|--------------------|---------|----------------------------------------------------------------|
+| `schedule_type`    | str     | `"interval"` or `"daily"`                                   |
+| `schedule_interval`| int     | Seconds between runs when `schedule_type="interval"`         |
+| `schedule_time`    | str     | `"HH:MM"` local time when `schedule_type="daily"`          |
+
+If `schedule_interval` is `null`, the loop falls back to the `PLUGIN_INTERVAL` env var (default `86400`s).  If `schedule_time` is unset or malformed, it defaults to `00:00`.
+
+Example `DailySummaryPlugin` in `daily_summary.py`:
+
+```python
+class DailySummaryPlugin(Plugin):
+    @property
+    def name(self) -> str:
+        return "daily_summary"
+
+    # run once per day at 08:00 local time
+    schedule_type     = "daily"
+    schedule_time     = "08:00"
+    schedule_interval = None
+
+    def run(self, session):
+        # plugin logic here...
+        ...
+
+plugin = DailySummaryPlugin()
+```
 
 ## API Interface
 
