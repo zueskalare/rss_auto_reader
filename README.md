@@ -13,7 +13,6 @@
 - [Database Initialization](#database-initialization)
 - [Running Locally](#running-locally)
 - [Docker Setup](#docker-setup)
-- [Web Interface](#web-interface)
 - [Project Structure](#project-structure)
 - [API Interface](#api-interface)
 - [Contributing](#contributing)
@@ -23,7 +22,7 @@
 - **Persistence**: Deduplicates and stores articles in PostgreSQL.
 - **Summarization**: Generates concise summaries using OpenAI.
 - **Webhook Dispatch**: Posts summarized data to a configurable HTTP endpoint.
-- **ASGI & Web UI**: Serves the Flask-based API and web interface via Starlette and Uvicorn.
+- **ASGI & Web UI**: Serves the FastAPI backend via Uvicorn and the Gradio-based frontend.
 - **Async Fetch Loop**: Executes the polling logic to fetch new feed entries asynchronously.
 - **Async Summarization Loop**: Summarizes newly fetched articles asynchronously in the background.
 - **Dockerized**: Ready to run via Docker Compose for easy deployment.
@@ -136,16 +135,9 @@ docker-compose exec db psql -U $POSTGRES_USER -c "CREATE DATABASE $POSTGRES_DB;"
 
 The HTTP API will be exposed on the port configured by `API_PORT` (default 8000).
 
-## Web Interface
-
-A simple built-in web UI is available for managing RSS feeds and user interests. Once the service is running (locally or via Docker Compose), browse to:
-
-- `/web/feeds` to add, view, and remove feeds.
-- `/web/users` to add, view, and remove users and their interest filters.
-
 ## Gradio Admin UI
 
-In addition to the Flask-based web UI and HTTP API, a Gradio-based admin interface is available for viewing articles, managing feeds, and configuring user webhooks.
+The Gradio-based admin interface is available for viewing articles, managing feeds, and configuring user webhooks.
 It starts automatically on application startup and listens on port configured by `UI_PORT` (default 7860).
 
 Browse to `http://localhost:${UI_PORT:-7860}/` to access the Gradio Admin UI.
@@ -178,31 +170,32 @@ RSS_llm/
 
 ## API Interface
 
-The service runs as an ASGI application (Uvicorn + Starlette wrapping Flask for the web UI/API). It exposes the following HTTP endpoints (default port configurable via `API_PORT`, default 8000):
+# API Interface
+The service runs as an ASGI application (Uvicorn + FastAPI backend). It exposes the following HTTP endpoints under the `/api` prefix (default port configurable via `API_PORT`, default 8000):
 
 ### Feeds
-- `GET /feeds`
-  List configured RSS feeds and polling interval.
-- `POST /feeds`
+- `GET /api/feeds`
+  List configured RSS feeds.
+- `POST /api/feeds`
   Add a new feed. JSON body: `{ "name": "...", "url": "..." }`.
-- `PUT /feeds/{name}`
+- `PUT /api/feeds/{name}`
   Update the URL of an existing feed. JSON body: `{ "url": "..." }`.
-- `DELETE /feeds/{name}`
+- `DELETE /api/feeds/{name}`
   Remove a feed by name.
 
 ### Articles
-- `GET /articles`
+- `GET /api/articles`
   List stored articles. Optional query parameters:
   - `since` (ISO 8601 timestamp) — only articles updated at or after this time.
   - `status` (comma-separated `new`, `summarized`, `error`) — filter by status.
   - `limit` (integer) — max number of articles to return.
 
 ### Fetch
-- `POST /fetch`
+- `POST /api/fetch`
   Trigger an immediate fetch and summarization run. Optional JSON body: `{ "feeds": ["FeedName1", "..."] }`.
 
 ### Health
-- `GET /health`
+- `GET /api/health`
   Health check; returns `{ "status": "ok" }`.
 
 ## Contributing

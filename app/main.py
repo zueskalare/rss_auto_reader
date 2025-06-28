@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from .db import SessionLocal, init_db
 from .models.article import Article, ArticleStatus
-from .api.views import app as flask_app
+from .api.views import router as api_router
 import json
 import requests
 from .services.summarize import summarize_article, summarize_articles
@@ -152,12 +152,10 @@ def summarize_and_push(session: Session):
 # ASGI and Gradio imports
 import gradio as gr
 from .gradio_ui import gr_interface
-from starlette.applications import Starlette
-from starlette.middleware.wsgi import WSGIMiddleware
+from fastapi import FastAPI
 
-# --- ASGI integration: wrap Flask app and schedule async polling ---
-app = Starlette()
-app.mount("/", WSGIMiddleware(flask_app))  # mount Flask app (Flask Web UI & API)
+app = FastAPI()
+app.include_router(api_router, prefix="/api")
 
 
 def dispatch_pending(session: Session):
@@ -335,6 +333,5 @@ async def on_startup() -> None:
     asyncio.create_task(dispatch_loop())
     asyncio.create_task(plugin_loop())
 
-    # launch Gradio admin UI in background
     ui_port = int(os.getenv("UI_PORT", 7860))
     gr_interface.launch(server_name="0.0.0.0", server_port=ui_port)
