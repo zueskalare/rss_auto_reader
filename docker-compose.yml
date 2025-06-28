@@ -20,6 +20,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-rss_user}:${POSTGRES_PASSWORD:-rss_password}@db:5432/${POSTGRES_DB:-rss_db}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_API_BASE: ${OPENAI_API_BASE:-https://api.openai.com/v1}
       WEBHOOK_URL: ${WEBHOOK_URL}
       POLL_INTERVAL: ${POLL_INTERVAL:-300}
       SUMMARIZE_INTERVAL: ${SUMMARIZE_INTERVAL:-300}
