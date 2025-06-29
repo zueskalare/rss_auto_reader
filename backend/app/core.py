@@ -90,6 +90,9 @@ def fetch_and_store(session: Session, feed: dict):
             session.commit()
         except IntegrityError:
             session.rollback()
+        except Exception as e:
+            logging.error(f"Error storing article {entry_id} from feed {feed['name']}: {e}")
+            session.rollback()
 
 def summarize_and_push(session: Session):
     new_articles = session.query(Article).filter_by(status=ArticleStatus.new).all()
@@ -124,18 +127,19 @@ def dispatch_pending(session: Session):
             u = session.query(User).filter_by(username=uname).first()
             if u and u.webhook:
                 try:
-                    requests.post(u.webhook, json={
+                    response = requests.post(u.webhook, json={
                         "id": art.link, "feed_name": art.feed_name,
                         "title": art.title, "link": art.link,
                         "published": art.published.isoformat() if art.published else None,
                         "feed_summary": art.summary, "ai_summary": art.ai_summary,
-                        "matched_interests": recs}, timeout=10)
+                        "matched_interests": recs}, timeout=30)
+                    logging.info(f"Dispatching article {art.link} to {uname} with status {response.status_code}")
                 except Exception:
                     success = False
             else:
                 print(f"User {uname} not found or has no webhook configured.")
                 logging.warning(f"User {uname} not found or has no webhook configured.")
-                success = False
+                success = True
         if success:
             art.sent = True
             art.status = ArticleStatus.sent

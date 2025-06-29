@@ -1,5 +1,5 @@
 # LLM configuration (model and parameters) for summarization and plugins
-model_name: qwq-32b
+model_name: deepseek-r1-distill-qwen-32b
 model_temperature: 0.6
 model_max_tokens: 4096
 openai_api_base: "http://host.docker.internal:11434/v1"
