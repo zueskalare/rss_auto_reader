@@ -3,6 +3,7 @@ import logging
 import asyncio
 import importlib
 import threading
+import time
 
 import feedparser
 import yaml
@@ -145,23 +146,34 @@ def dispatch_pending(session: Session):
         else:
             session.rollback()
 
-def _poll_job(session, feeds):
-    for f in feeds:
-        fetch_and_store(session, f)
+def _poll_job(feeds):
+    session = SessionLocal()
+    try:
+        for f in feeds:
+            fetch_and_store(session, f)
+    finally:
+        session.close()
 
-def _summarize_job(session):
-    summarize_and_push(session)
+def _summarize_job():
+    session = SessionLocal()
+    try:
+        summarize_and_push(session)
+    finally:
+        session.close()
 
-def _dispatch_job(session):
-    dispatch_pending(session)
+def _dispatch_job():
+    session = SessionLocal()
+    try:
+        dispatch_pending(session)
+    finally:
+        session.close()
 _poll_wake_event = threading.Event()
 
 async def poll_loop():
     def _poll_thread_loop():
-        session = SessionLocal()
         while True:
             feeds, interval = load_config()
-            _poll_job(session, feeds)
+            _poll_job(feeds)
             _poll_wake_event.wait(timeout=interval)
             _poll_wake_event.clear()
 
@@ -171,9 +183,8 @@ _summarize_wake_event = threading.Event()
 
 async def summarize_loop():
     def _summarize_thread_loop():
-        session = SessionLocal()
         while True:
-            _summarize_job(session)
+            _summarize_job()
             _summarize_wake_event.wait(timeout=SUMMARIZE_INTERVAL)
             _summarize_wake_event.clear()
 
@@ -183,10 +194,9 @@ _dispatch_wake_event = threading.Event()
 
 async def dispatch_loop():
     def _dispatch_thread_loop():
-        session = SessionLocal()
         interval = int(os.getenv("DISPATCH_INTERVAL", 300))
         while True:
-            _dispatch_job(session)
+            _dispatch_job()
             _dispatch_wake_event.wait(timeout=interval)
             _dispatch_wake_event.clear()
 
