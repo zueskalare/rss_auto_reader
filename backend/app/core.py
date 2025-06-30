@@ -171,40 +171,26 @@ def _dispatch_job():
         dispatch_pending(session)
     finally:
         session.close()
-_poll_wake_event = threading.Event()
-
+        
+# --- Background tasks ---
 async def poll_loop():
-    def _poll_thread_loop():
-        while True:
-            feeds, interval = load_config()
-            _poll_job(feeds)
-            _poll_wake_event.wait(timeout=interval)
-            _poll_wake_event.clear()
-
-    await asyncio.to_thread(_poll_thread_loop)
-
-_summarize_wake_event = threading.Event()
+    while True:
+        feeds, interval = load_config()
+        await asyncio.to_thread(_poll_job, feeds)
+        await asyncio.sleep(interval)
 
 async def summarize_loop():
-    def _summarize_thread_loop():
-        while True:
-            _summarize_job()
-            _summarize_wake_event.wait(timeout=SUMMARIZE_INTERVAL)
-            _summarize_wake_event.clear()
-
-    await asyncio.to_thread(_summarize_thread_loop)
-
-_dispatch_wake_event = threading.Event()
+    while True:
+        await asyncio.to_thread(_summarize_job)
+        await asyncio.sleep(SUMMARIZE_INTERVAL)
 
 async def dispatch_loop():
-    def _dispatch_thread_loop():
-        interval = int(os.getenv("DISPATCH_INTERVAL", 300))
-        while True:
-            _dispatch_job()
-            _dispatch_wake_event.wait(timeout=interval)
-            _dispatch_wake_event.clear()
-
-    await asyncio.to_thread(_dispatch_thread_loop)
+    interval = int(os.getenv("DISPATCH_INTERVAL", 300))
+    while True:
+        await asyncio.to_thread(_dispatch_job)
+        await asyncio.sleep(interval)
+        
+        
 
 async def _run_interval(plugin, interval: int):
     """Helper loop to run a plugin at a fixed interval (in seconds)."""

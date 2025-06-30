@@ -23,7 +23,7 @@ class DailySummaryPlugin(Plugin):
 
     # scheduling: run once per day at this HH:MM local time
     schedule_type:str = "daily"
-    schedule_time:str = "18:35"  # HH:MM in local time
+    schedule_time:str = "22:00"  # HH:MM in local time
     schedule_interval:str = None
 
     def run(self, session: Session) -> None:

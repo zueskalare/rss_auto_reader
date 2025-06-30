@@ -163,21 +163,26 @@ def get_articles(
 
 
 @router.post("/fetch", status_code=status.HTTP_204_NO_CONTENT)
-def trigger_fetch(db: Session = Depends(get_db)):
-    """Wake the polling and summarization threads to run immediately"""
-    from ..core import _poll_wake_event, _summarize_wake_event
+def trigger_fetch(fetch_in: Optional[FetchIn] = None, db: Session = Depends(get_db)):
+    """Trigger immediate fetch and summarization for all or specified feeds"""
+    from ..core import fetch_and_store, summarize_and_push
 
-    _poll_wake_event.set()
-    _summarize_wake_event.set()
+    feeds = db.query(Feed).all()
+    selected = feeds
+    if fetch_in and fetch_in.feeds:
+        selected = [f for f in feeds if f.name in fetch_in.feeds]
+    for f in selected:
+        fetch_and_store(db, {"name": f.name, "url": f.url})
+    summarize_and_push(db)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/dispatch", status_code=status.HTTP_204_NO_CONTENT)
 def trigger_dispatch(db: Session = Depends(get_db)):
-    """Wake the dispatch thread to run immediately"""
-    from ..core import _dispatch_wake_event
+    """Trigger immediate dispatch of any pending summarized articles"""
+    from ..core import dispatch_pending
 
-    _dispatch_wake_event.set()
+    dispatch_pending(db)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
