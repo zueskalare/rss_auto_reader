@@ -23,7 +23,7 @@ class DailySummaryPlugin(Plugin):
 
     # scheduling: run once per day at this HH:MM local time
     schedule_type:str = "daily"
-    schedule_time:str = "22:00"  # HH:MM in local time
+    schedule_time:str = "22:30"  # HH:MM in local time
     schedule_interval:str = None
 
     def run(self, session: Session) -> None:
@@ -83,7 +83,7 @@ class DailySummaryPlugin(Plugin):
                 HumanMessage(content="\n".join(lines)),
             ]
             try:
-                resp = LLM(messages)
+                resp = LLM.invoke(messages)
                 highlight = resp.content.strip()
                 logging.info(f"[DailySummary:{user.username}] {highlight}")
                 # Send highlight to this user's webhook
