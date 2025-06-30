@@ -23,7 +23,7 @@ class DailySummaryPlugin(Plugin):
 
     # scheduling: run once per day at this HH:MM local time
     schedule_type:str = "daily"
-    schedule_time:str = "22:30"  # HH:MM in local time
+    schedule_time:str = "23:05"  # HH:MM in local time
     schedule_interval:str = None
 
     def run(self, session: Session) -> None:
@@ -79,19 +79,28 @@ class DailySummaryPlugin(Plugin):
                 SystemMessage(content='''You are an assistant that summarizes news articles and recommends them to users by matching each article to their topics of interest.
 - Write a concise **summary in Markdown format** for the articles.
 - **Include the article link**.
-- Highlight key parts of the summary that match a user's interests using **bold text**.'''),
+- Highlight key parts of the summary that match a user's interests using **bold text**.
+- Less than 3500 words'''),
                 HumanMessage(content="\n".join(lines)),
             ]
             try:
                 resp = LLM.invoke(messages)
                 highlight = resp.content.strip()
+                # remove think content wraped in <think></think>
+                # find the </think> tag and remove everything before it
+                if "<think>" in highlight:
+                    think_start = highlight.index("<think>")
+                    think_end = highlight.index("</think>") + len("</think>")
+                    highlight = highlight[think_end:].strip()
+                
                 logging.info(f"[DailySummary:{user.username}] {highlight}")
                 # Send highlight to this user's webhook
                 webhook = getattr(user, 'webhook', None)
+                logging.info(f"[DailySummary] Sending summary to webhook for {user.username}: {webhook}")
                 if webhook:
                     payload = {"title": self.name, "ai_summary": highlight}
                     try:
-                        requests.post(webhook, json=payload, timeout=10)
+                        requests.post(webhook, json=payload, timeout=1200)
                     except Exception as e:
                         logging.warning(f"[DailySummary] webhook failed for {user.username}: {e}")
             except Exception as e:
