@@ -11,6 +11,7 @@ from app.core import load_users
 import json
 import requests
 import yaml
+import time
 
 
 
@@ -23,7 +24,7 @@ class DailySummaryPlugin(Plugin):
 
     # scheduling: run once per day at this HH:MM local time
     schedule_type:str = "daily"
-    schedule_time:str = "23:05"  # HH:MM in local time
+    schedule_time:str = "8:30"  # HH:MM in local time
     schedule_interval:str = None
 
     def run(self, session: Session) -> None:
@@ -77,10 +78,9 @@ class DailySummaryPlugin(Plugin):
 
             messages = [
                 SystemMessage(content='''You are an assistant that summarizes news articles and recommends them to users by matching each article to their topics of interest.
-- Write a concise **summary in Markdown format** for the articles.
-- **Include the article link**.
-- Highlight key parts of the summary that match a user's interests using **bold text**.
-- Less than 3500 words'''),
+                - Write a concise **summary in Markdown format** for the articles.
+                - **Include the article link**.
+                - Highlight key parts of the summary that match a user's interests using **bold text**.'''),
                 HumanMessage(content="\n".join(lines)),
             ]
             try:
@@ -92,17 +92,34 @@ class DailySummaryPlugin(Plugin):
                     think_start = highlight.index("<think>")
                     think_end = highlight.index("</think>") + len("</think>")
                     highlight = highlight[think_end:].strip()
-                
-                logging.info(f"[DailySummary:{user.username}] {highlight}")
-                # Send highlight to this user's webhook
+                logging.warning(f"[DailySummary:{user.username}] {highlight}")
                 webhook = getattr(user, 'webhook', None)
-                logging.info(f"[DailySummary] Sending summary to webhook for {user.username}: {webhook}")
-                if webhook:
-                    payload = {"title": self.name, "ai_summary": highlight}
-                    try:
-                        requests.post(webhook, json=payload, timeout=1200)
-                    except Exception as e:
-                        logging.warning(f"[DailySummary] webhook failed for {user.username}: {e}")
+                # calclulate the length of the highlight
+                highlight_length = len(highlight.split())
+                if highlight_length > 2000:
+                    logging.warning(f"[DailySummary:{user.username}] Highlight is too long: {highlight_length} words.")
+                    for i in range(0,len(highlight.split()), 1500):
+                        chunk = " ".join(highlight.split()[i:i+1500])
+                        if i == 0:
+                            payload = {"ai_summary": f'# Daily Summary: \n{chunk}'}
+                        else:
+                            payload = { "ai_summary": f'# Daily Summary (continued): \n{chunk}'}
+                        try:
+                            requests.post(webhook, json=payload, timeout=3600)
+                            time.sleep(1)  # avoid hitting rate limits
+                        except Exception as e:
+                            logging.warning(f"[DailySummary] webhook failed for {user.username}: {e}")
+                
+                else:
+                    # Send highlight to this user's webhook
+                    logging.info(f"[DailySummary] Sending summary to webhook for {user.username}: {webhook}")
+                    if webhook:
+                        payload = {"ai_summary": f'# Daily Summary: \n{highlight}'}
+                        try:
+                            requests.post(webhook, json=payload, timeout=3600)
+                            time.sleep(1)  # avoid hitting rate limits
+                        except Exception as e:
+                            logging.warning(f"[DailySummary] webhook failed for {user.username}: {e}")
             except Exception as e:
                 logging.error(f"Error in daily summary plugin for {user.username}: {e}")
 

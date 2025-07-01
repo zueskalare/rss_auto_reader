@@ -40,8 +40,9 @@ def summarize_article(
     LLM = ChatOpenAI(**_llm_kwargs)
 
     class SummarizationResult(BaseModel):
-        summaries: str = Field(default_factory=str, description="Concise summary of the article in Markdown format")
-        recipients: List[str] = Field(default_factory=list, description="List of users interested in the article")
+        Summary_of_article: str = Field(default_factory=str, description="Concise summary of the article in Markdown format")
+        Recommendation_reason: str = Field(default_factory=str, description="Reason for recommending the article to users")
+        Recommend_recipients: List[str] = Field(default_factory=list, description="List of users who might interested in the article")
     # print(f"Summarizing {len(items)} articles for {len(users)} users...")
     # Format user interests
     user_info = "\n".join(
@@ -55,11 +56,12 @@ def summarize_article(
     # Instructions for format
     system_prompt = (
         '''You are an assistant that summarizes news articles and recommends them to users by matching each article to their topics of interest. If no one is interested in the article, Summarize the article, make recipients a empty list.
-For the article:
-- Write a concise **summary in Markdown format**.
-- **Include the article link**.
-- Highlight key parts of the summary that match a user's interests using **bold text**. that you think why you recommend this article to the user.'''
-    )
+        For the article:
+        - Write a concise **summary in Markdown format**.
+        - **Include the article link**.
+        - Highlight key parts of the summary that match a user's interests using **bold text**. that you think why you recommend this article to the user.
+        - Provide a few takeaways related to users interest or key points from the article.'''
+            )
 
     full_prompt = (
         f"Users and their interests:\n{user_info}\n\n"
@@ -72,11 +74,10 @@ For the article:
         HumanMessage(content=full_prompt)
     ]
 
-    response = llm.invoke(messages)
+    response = llm.invoke(messages)    
     # print(f"LLM response: {response}")
-
     # Try parsing using the parser
-    if response.summaries is None or response.summaries.strip() == "":
+    if response.Summary_of_article is None or response.Summary_of_article.strip() == "":
         raise ValueError("LLM did not return a valid summary. Please check the input data and model configuration.")
     try:
         

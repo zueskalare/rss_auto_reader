@@ -68,6 +68,8 @@ def save_llm_config(cfg: dict) -> None:
         yaml.safe_dump(cfg, f)
 
 def fetch_and_store(session: Session, feed: dict):
+    """Fetch articles from a feed and store them in the database."""
+    logging.info(f"Fetching articles from feed: {feed['name']} ({feed['url']})")
     parsed = feedparser.parse(feed["url"])
     for entry in parsed.entries:
         entry_id = entry.get("id") or entry.get("link")
@@ -95,6 +97,7 @@ def fetch_and_store(session: Session, feed: dict):
             session.rollback()
 
 def summarize_and_push(session: Session):
+    logging.info(f"Summarizing new articles and preparing for dispatch")
     new_articles = session.query(Article).filter_by(status=ArticleStatus.new).all()
     users = load_users()
     user_data = [{"username": u.username, "interests": u.interests or []} for u in users]
@@ -108,8 +111,8 @@ def summarize_and_push(session: Session):
                     art.published.isoformat() if art.published else "",
                     art.summary or "")
                 summaries = summarize_article(inp, user_data)
-                art.ai_summary = summaries.get("summaries", '')
-                art.recipients = json.dumps(summaries.get("recipients", []))
+                art.ai_summary = summaries.get("Summary_of_article", '')
+                art.recipients = json.dumps(summaries.get("Recommend_recipients", []))
                 art.status = ArticleStatus.summarized
                 art.sent = False
                 session.commit()
@@ -119,6 +122,7 @@ def summarize_and_push(session: Session):
                 session.rollback()
 
 def dispatch_pending(session: Session):
+    logging.info(f"Dispatching articles to users via webhooks")
     unsent = session.query(Article).filter_by(status=ArticleStatus.summarized, sent=False).all()
     for art in unsent:
         recs = json.loads(art.recipients or "[]")
@@ -127,50 +131,65 @@ def dispatch_pending(session: Session):
             u = session.query(User).filter_by(username=uname).first()
             if u and u.webhook:
                 try:
-                    response = requests.post(u.webhook, json={
-                        "id": art.link, "feed_name": art.feed_name,
-                        "title": art.title, "link": art.link,
-                        "published": art.published.isoformat() if art.published else None,
-                        "feed_summary": art.summary, "ai_summary": art.ai_summary,
-                        "matched_interests": recs}, timeout=30)
+                    # construct content for webhook
+                    
+                    content = f'# [{art.title}]({art.link})\n # AI Summary\n{art.ai_summary} \n# Abstract\n{art.summary}\n'
+                    if len(content.split()) > 1500:
+                        content = " ".join(content.split()[:1500]) + "..."
+                    # dispatch to user webhook
+                    response = requests.post(u.webhook, json={"ai_summary": content}, timeout=30)
                     logging.info(f"Dispatching article {art.link} to {uname} with status {response.status_code}")
+                    time.sleep(2)  # Rate limit to avoid hitting webhook too fast
                 except Exception:
                     success = False
             else:
-                print(f"User {uname} not found or has no webhook configured.")
+                logging.info(f"User {uname} not found or has no webhook configured.")
                 logging.warning(f"User {uname} not found or has no webhook configured.")
-                success = True
+                success = False
         if success:
             art.sent = True
             art.status = ArticleStatus.sent
             session.commit()
             # dispatch_summary(art, art.ai_summary) # ! not necessary, if you want to use webhook, you can use the above code
-            print(f"Dispatched article {art.link} to {recs}")
+            logging.info(f"Dispatched article {art.link} to {recs}")
             logging.info(f"Dispatched article {art.link} to {recs}")
         else:
-            session.rollback()
+            # session.rollback()
+            art.sent = False
+            art.status = ArticleStatus.new
+            session.commit()
 
 def _poll_job(feeds):
+    jobid = time.asctime()
+    logging.info(f"Starting poll job with feeds at {jobid}")
     session = SessionLocal()
     try:
         for f in feeds:
             fetch_and_store(session, f)
     finally:
         session.close()
+    logging.info(f"Finished poll job at {jobid}")
 
 def _summarize_job():
+    jobid = time.asctime()
+    logging.info(f"Starting summarize job at {jobid}")
     session = SessionLocal()
     try:
         summarize_and_push(session)
     finally:
         session.close()
+    logging.info(f"Finished summarize job at {jobid}")
 
 def _dispatch_job():
+    jobid = time.asctime()
+    logging.info(f"Starting dispatch job at {jobid}")
     session = SessionLocal()
     try:
         dispatch_pending(session)
     finally:
         session.close()
+    logging.info(f"Finished dispatch job at {jobid}")
+    
         
 # --- Background tasks ---
 async def poll_loop():
